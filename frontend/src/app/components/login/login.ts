@@ -56,7 +56,7 @@ export class LoginComponent implements OnInit {
         alert('Test successful! User was logged in to Firebase.'); //Placeholder notification to be removed by Logan in the next branch.
 
         // Updated route: navigates to the dashboard upon a successful login.
-        this.router.navigate(['/login']); // /login is just a placeholder. You can change it to any route you want to navigate to after login.
+        this.router.navigate(['/household/create']);
       },
       error: (err) => {
         this.loading = false; // Turn off spinner on error
