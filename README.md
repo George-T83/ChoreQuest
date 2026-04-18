@@ -79,7 +79,7 @@ source venv/bin/activate
 python manage.py runserver
 ```
 
-The API will be available at: https://www.google.com/search?q=http://127.0.0.1:8000/
+The API will be available at: http://127.0.0.1:8000/
 
 Terminal 2: Start the Angular Frontend
 

@@ -1,0 +1,148 @@
+.auth-shell {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  padding: 1.5rem;
+  background-color: var(--color-bg);
+}
+
+.card {
+  width: 100%;
+  max-width: 420px;
+  background: var(--color-surface);
+  border-radius: 1rem;
+  padding: 2rem 1.75rem;
+  /* Darkened the shadow opacity for dark mode */
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.5);
+}
+
+.card__header {
+  text-align: center;
+  margin-bottom: 1.75rem;
+}
+
+.card__header .logo {
+  width: 96px;
+  height: 96px;
+  margin-bottom: 0.75rem;
+}
+
+.card__title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  margin: 0 0 0.25rem;
+}
+
+.card__subtitle {
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+  margin: 0;
+}
+
+.card__body {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.field__label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-text-primary); /* Explicitly set label text for dark mode */
+}
+
+.required {
+  color: var(--color-danger);
+}
+
+.field__input {
+  padding: 0.75rem 1rem;
+  background-color: var(--color-input-bg); /* Dark input background */
+  color: var(--color-text-primary); /* White text typing */
+  border: 1px solid var(--color-border); /* Darker border */
+  border-radius: 0.5rem;
+  font-size: 1rem;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+/* Ensure placeholder text blends in */
+.field__input::placeholder {
+  color: var(--color-text-secondary);
+}
+
+.field__input:focus {
+  border-color: var(--color-primary);
+}
+
+.field__error {
+  font-size: 0.8rem;
+  color: var(--color-danger);
+}
+
+.alert--error {
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  color: var(--color-danger); /* Matched to global danger variable */
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.8rem 1.5rem;
+  border-radius: 0.5rem;
+  font-size: 1rem;
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+  transition:
+    opacity 0.2s,
+    background-color 0.2s;
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn--primary {
+  background-color: var(--color-primary);
+  color: white;
+}
+
+.btn--primary:hover:not(:disabled) {
+  background-color: var(--color-primary-hover);
+}
+
+.btn--full {
+  width: 100%;
+}
+
+.card__footer {
+  margin-top: 1.5rem;
+  text-align: center;
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+}
+
+.card__footer a {
+  color: var(--color-primary);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.card__footer a:hover {
+  text-decoration: underline;
+}
