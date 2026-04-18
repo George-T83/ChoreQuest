@@ -75,10 +75,8 @@ export class RegisterComponent implements OnInit {
     this.authService.register(this.emailCtrl.value, this.passCtrl.value).subscribe({
       next: () => {
         this.loading = false;
-        alert('Test successful! User was logged in to Firebase.'); //Placeholder notification.
 
-        //KAIDEN: Below is the line that navigates to a given location upon a successful login.
-        this.router.navigate(['/login']); // /login is just a placeholder. You can change it to any route you want to navigate to after login.
+        this.router.navigate(['/login']);
       },
       error: (err) => {
         this.loading = false;
