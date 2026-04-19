@@ -47,7 +47,9 @@
         <div class="household-header card">
           <div class="hh-info">
             <h2>{{ household.name }}</h2>
-            <p>{{ household.member_count }} members · Sprint active</p>
+            <p>
+              {{ household.member_count }} {{ household.member_count === 1 ? 'member' : 'members' }}
+            </p>
           </div>
 
           <div class="invite-section">
