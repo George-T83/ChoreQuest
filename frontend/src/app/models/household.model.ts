@@ -1,5 +1,5 @@
 export interface HouseholdMember {
-  id: number;
+  id: string;
   display_name: string;
   email: string;
   is_admin: boolean;
@@ -7,15 +7,19 @@ export interface HouseholdMember {
 }
 
 export interface Household {
-  id: number;
+  id: string;
   name: string;
   invite_code: string;
-  admin_id: number;
+  admin_id: string;
   member_count: number;
   is_full: boolean;
-  members: HouseholdMember[];
-  created_at: string;
+  members: string[];
+  created_at?: string;
 }
 
-export interface CreateHouseholdPayload { name: string; }
-export interface JoinHouseholdPayload { invite_code: string; }
+export interface CreateHouseholdPayload {
+  name: string;
+}
+export interface JoinHouseholdPayload {
+  invite_code: string;
+}
