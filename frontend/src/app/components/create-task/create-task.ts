@@ -23,11 +23,11 @@ export class CreateTaskComponent implements OnInit {
   assigned_to = '';
   due_date = '';
   difficulty: 'Easy' | 'Medium' | 'Hard' = 'Easy';
+  points = 10;
 
   isSubmitting = false;
   errorMessage = '';
 
-  // Pre-fill today's date as a sensible default
   ngOnInit() {
     this.due_date = this.getLocalDateString(new Date());
   }
@@ -40,7 +40,12 @@ export class CreateTaskComponent implements OnInit {
   }
 
   get isFormValid(): boolean {
-    return this.title.trim().length > 0 && this.assigned_to.length > 0 && this.due_date.length > 0;
+    return (
+      this.title.trim().length > 0 &&
+      this.assigned_to.length > 0 &&
+      this.due_date.length > 0 &&
+      this.points >= 0
+    );
   }
 
   submit() {
@@ -54,6 +59,7 @@ export class CreateTaskComponent implements OnInit {
       assigned_to: this.assigned_to,
       due_date: this.due_date,
       difficulty: this.difficulty,
+      points: this.points,
     };
 
     this.taskService.createTask(payload).subscribe({

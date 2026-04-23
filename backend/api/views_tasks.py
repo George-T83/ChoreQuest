@@ -40,6 +40,14 @@ def create_task(request):
     due_date_str = request.data.get('due_date', '').strip()
     difficulty = request.data.get('difficulty', 'Easy').strip()
 
+    # Points: default to 0 if not provided, reject negative values
+    try:
+        points = int(request.data.get('points', 0))
+        if points < 0:
+            return Response({'detail': 'Points cannot be negative.'}, status=400)
+    except (ValueError, TypeError):
+        return Response({'detail': 'Points must be a whole number.'}, status=400)
+
     if not title:
         return Response({'detail': 'Task title is required.'}, status=400)
     if not assigned_to:
@@ -72,6 +80,7 @@ def create_task(request):
         'created_by': uid,
         'due_date': due_date,
         'difficulty': difficulty,
+        'points': points,
         'status': 'pending',
         'created_at': firestore.SERVER_TIMESTAMP,
     }
@@ -103,7 +112,11 @@ def get_household_tasks(request):
 
     tasks = []
     for doc in task_docs:
-        tasks.append(_serialize_task(doc.to_dict()))
+        task = doc.to_dict()
+        # Backwards compatibility: tasks created before points were added default to 0
+        if 'points' not in task:
+            task['points'] = 0
+        tasks.append(_serialize_task(task))
 
     return Response(tasks, status=200)
 
@@ -113,8 +126,10 @@ def get_household_tasks(request):
 def complete_task(request, task_id):
     """
     Marks a task as completed. Only the assigned user can complete it.
+    Awards the task's point value to the assigned user's points total in Firestore.
     """
     uid = request.user.username
+    db = settings.FIREBASE_DB
 
     household_data, household_ref = _get_user_household_doc(uid)
     if not household_data:
@@ -134,9 +149,21 @@ def complete_task(request, task_id):
     if task.get('status') == 'completed':
         return Response({'detail': 'Task is already completed.'}, status=400)
 
+    # Mark the task as completed
     task_ref.update({
         'status': 'completed',
         'completed_at': firestore.SERVER_TIMESTAMP,
     })
 
-    return Response({'detail': 'Task marked as completed.'}, status=200)
+    # Award points to the user — default to 0 for old tasks without a points field
+    points_to_award = task.get('points', 0)
+    if points_to_award > 0:
+        user_ref = db.collection('users').document(uid)
+        user_ref.update({
+            'points': firestore.Increment(points_to_award)
+        })
+
+    return Response({
+        'detail': 'Task marked as completed.',
+        'points_awarded': points_to_award,
+    }, status=200)

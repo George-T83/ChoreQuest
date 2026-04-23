@@ -66,6 +66,24 @@
           }
         </div>
       </div>
+
+      <div class="form-group">
+        <label for="task-points">Point Value</label>
+        <div class="points-input-wrapper">
+          <span class="points-prefix">⭐</span>
+          <input
+            id="task-points"
+            type="number"
+            [(ngModel)]="points"
+            min="0"
+            step="1"
+            class="form-input points-input"
+            placeholder="e.g. 10"
+          />
+          <span class="points-suffix">pts</span>
+        </div>
+        <p class="form-hint">Points awarded to the member when they complete this task.</p>
+      </div>
     </div>
 
     <div class="modal-footer">
