@@ -1,4 +1,4 @@
-import { Component, inject, OnInit, ChangeDetectorRef } from '@angular/core';
+import { Component, inject, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
 import { Auth } from '@angular/fire/auth';
@@ -14,7 +14,7 @@ import { Household, HouseholdMember } from '../../models/household.model';
   templateUrl: './dashboard.html',
   styleUrls: ['./dashboard.css'],
 })
-export class DashboardComponent implements OnInit {
+export class DashboardComponent implements OnInit, OnDestroy {
   private auth = inject(Auth);
   private router = inject(Router);
   private householdService = inject(HouseholdService);
@@ -29,6 +29,7 @@ export class DashboardComponent implements OnInit {
   isCreateTaskOpen = false;
 
   currentUser: any = null;
+  private authUnsubscribe: (() => void) | null = null;
 
   toggleProfileMenu() {
     this.isProfileMenuOpen = !this.isProfileMenuOpen;
@@ -108,7 +109,7 @@ export class DashboardComponent implements OnInit {
   }
 
   ngOnInit() {
-    this.auth.onAuthStateChanged((user) => {
+    this.authUnsubscribe = this.auth.onAuthStateChanged((user) => {
       this.currentUser = user;
 
       if (!user) {
@@ -120,7 +121,9 @@ export class DashboardComponent implements OnInit {
         next: (household) => {
           this.isInitialLoading = false;
           if (household) {
-            this.taskService.loadHouseholdTasks().subscribe();
+            this.taskService.loadHouseholdTasks().subscribe({
+              error: (err: Error) => console.error('Failed to load tasks:', err),
+            });
           }
           this.cdr.detectChanges();
         },
@@ -130,6 +133,12 @@ export class DashboardComponent implements OnInit {
         },
       });
     });
+  }
+
+  ngOnDestroy() {
+    if (this.authUnsubscribe) {
+      this.authUnsubscribe();
+    }
   }
 
   copyInviteCode(code: string) {
