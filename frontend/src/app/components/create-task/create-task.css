@@ -92,6 +92,41 @@
   box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
 }
 
+/* Points input row */
+.points-input-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.points-prefix {
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.points-input {
+  width: 120px;
+  flex-shrink: 0;
+}
+
+/* Hide browser spinner arrows on number input */
+.points-input::-webkit-inner-spin-button,
+.points-input::-webkit-outer-spin-button {
+  opacity: 1;
+}
+
+.points-suffix {
+  font-size: 0.85rem;
+  color: #6b7280;
+  font-weight: 600;
+}
+
+.form-hint {
+  margin: 0;
+  font-size: 0.75rem;
+  color: #9ca3af;
+}
+
 /* Difficulty toggle buttons */
 .difficulty-group {
   display: flex;
