@@ -153,4 +153,9 @@ export class DashboardComponent implements OnInit {
       console.error('Error logging out:', error);
     }
   }
+
+  getMemberName(uid: string, household: Household): string {
+    const member = household.members.find((m) => m.id === uid);
+    return member ? member.display_name : 'Unknown';
+  }
 }

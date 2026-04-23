@@ -137,7 +137,7 @@
                       } @else {
                         <button class="btn-complete btn-complete--locked" disabled>Locked</button>
                       }
-                      <span class="assignee">{{ task.assigned_to_name }}</span>
+                      <span class="assignee">{{ getMemberName(task.assigned_to, household) }}</span>
                     </div>
                   </div>
                 }
