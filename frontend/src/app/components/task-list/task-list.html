@@ -1,0 +1,83 @@
+<section class="section">
+  <div class="section-header">
+    <h3>MY TASKS</h3>
+    @if (isAdmin) {
+    <button class="btn-create-task" (click)="onOpenCreateTask()">＋ Create Task</button>
+    }
+  </div>
+
+  @if (tasksLoadError) {
+  <div class="error-banner card">{{ tasksLoadError }}</div>
+  }
+
+  @if (tasks.length === 0) {
+  <div class="empty-tasks card">
+    <p>
+      No tasks yet.
+      @if (isAdmin) {
+      Hit <strong>Create Task</strong> to assign the first one!
+      } @else {
+      Your admin hasn't assigned any tasks yet.
+      }
+    </p>
+  </div>
+  } @else {
+  <div class="task-list">
+    @for (task of tasks; track task.id) {
+    <div class="task-card card task--{{
+            task.status === 'completed'
+              ? 'done'
+              : getUrgency(task.due_date, task.status) === 'OVERDUE'
+                ? 'overdue'
+                : 'normal'
+          }}">
+      <!-- Checkbox -->
+      <div class="task-checkbox">
+        <input type="checkbox"
+               [checked]="task.status === 'completed'"
+               [disabled]="true" />
+      </div>
+
+      <!-- Task details -->
+      <div class="task-details">
+        <h4 [class.strike]="task.status === 'completed'">{{ task.title }}</h4>
+        <p class="task-meta">{{ formatDueDate(task.due_date) }}</p>
+
+        @if (task.status !== 'completed') {
+        <div class="task-tags">
+          @if (getUrgency(task.due_date, task.status) === 'Due today') {
+          <span class="tag tag--warning">Due today</span>
+          }
+          @if (getUrgency(task.due_date, task.status) === 'OVERDUE') {
+          <span class="tag tag--danger">OVERDUE</span>
+          }
+          <span class="tag tag--neutral">{{ task.difficulty }}</span>
+          @if (task.points > 0) {
+          <span class="tag tag--points">+{{ task.points }} pts</span>
+          }
+        </div>
+        } @else {
+        @if (task.points > 0) {
+        <div class="task-tags">
+          <span class="tag tag--points-earned">+{{ task.points }} pts earned</span>
+        </div>
+        }
+        }
+      </div>
+
+      <!-- Actions -->
+      <div class="task-actions">
+        @if (task.status === 'completed') {
+        <button class="btn-complete" disabled>Done</button>
+        } @else if (isAssignedToMe(task.assigned_to)) {
+        <button class="btn-complete" (click)="onComplete(task.id)">Complete</button>
+        } @else {
+        <button class="btn-complete btn-complete--locked" disabled>Locked</button>
+        }
+        <span class="assignee">{{ getMemberName(task.assigned_to) }}</span>
+      </div>
+    </div>
+    }
+  </div>
+  }
+</section>

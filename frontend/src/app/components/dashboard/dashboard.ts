@@ -7,11 +7,13 @@ import { HouseholdService } from '../../services/household.service';
 import { TaskService } from '../../services/task';
 import { CreateTaskComponent } from '../create-task/create-task';
 import { Household, HouseholdMember } from '../../models/household.model';
+import { TaskListComponent } from '../task-list/task-list';
+
 
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule, RouterModule, CreateTaskComponent],
+  imports: [CommonModule, RouterModule, CreateTaskComponent, TaskListComponent],
   templateUrl: './dashboard.html',
   styleUrls: ['./dashboard.css'],
 })
