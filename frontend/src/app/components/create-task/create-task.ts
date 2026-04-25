@@ -43,18 +43,20 @@ export class CreateTaskComponent implements OnInit {
   isSubmitting = false;
   errorMessage = '';
 
+  showValidationErrors = false;
+
   ngOnInit() {
     this.due_date = new Date();
   }
 
-  private getLocalDateString(date: Date): string {
+  getLocalDateString(date: Date): string {
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const day = String(date.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
   }
 
-  private getNormalizedPoints(): number | null {
+  getNormalizedPoints(): number | null {
     const points = this.points;
     if (points === null || !Number.isFinite(points) || !Number.isInteger(points) || points < 0) {
       return null;
@@ -63,12 +65,12 @@ export class CreateTaskComponent implements OnInit {
     return points;
   }
 
-  private getNormalizedTitle(): string | null {
+  getNormalizedTitle(): string | null {
     const normalizedTitle = this.title.trim();
     return normalizedTitle.length > 0 ? normalizedTitle : null;
   }
 
-  private getNormalizedAssignedTo(): string | null {
+  getNormalizedAssignedTo(): string | null {
     if (typeof this.assigned_to !== 'string') {
       return null;
     }
@@ -77,7 +79,7 @@ export class CreateTaskComponent implements OnInit {
     return normalizedAssignedTo.length > 0 ? normalizedAssignedTo : null;
   }
 
-  private getNormalizedDifficulty(): 'Easy' | 'Medium' | 'Hard' | null {
+  getNormalizedDifficulty(): 'Easy' | 'Medium' | 'Hard' | null {
     if (this.difficulty === 'Easy' || this.difficulty === 'Medium' || this.difficulty === 'Hard') {
       return this.difficulty;
     }
@@ -85,7 +87,7 @@ export class CreateTaskComponent implements OnInit {
     return null;
   }
 
-  private getNormalizedDueDate(): string | null {
+  getNormalizedDueDate(): string | null {
     if (this.due_date instanceof Date) {
       return this.getLocalDateString(this.due_date);
     }
@@ -94,6 +96,13 @@ export class CreateTaskComponent implements OnInit {
       return this.due_date;
     }
 
+    return null;
+  }
+
+  getPointsErrorMessage(): string | null {
+    if (this.points === null) return 'Points are required.';
+    if (this.points < 0) return 'Points cannot be negative.';
+    if (!Number.isInteger(this.points)) return 'Points must be a whole number (no decimals).';
     return null;
   }
 
@@ -108,47 +117,41 @@ export class CreateTaskComponent implements OnInit {
   }
 
   submit() {
-    if (!this.isFormValid || this.isSubmitting) return;
-
-    const normalizedPoints = this.getNormalizedPoints();
-    if (normalizedPoints === null) {
-      this.errorMessage = 'Points must be a whole number greater than or equal to 0.';
+    // If the form is invalid, turn on the error text and stop submission
+    if (!this.isFormValid) {
+      this.showValidationErrors = true;
       return;
     }
-
-    const normalizedDueDate = this.getNormalizedDueDate();
-    if (normalizedDueDate === null) {
-      this.errorMessage = 'Due date is required.';
-      return;
-    }
-
-    const normalizedTitle = this.getNormalizedTitle();
-    if (normalizedTitle === null) {
-      this.errorMessage = 'Task title is required.';
-      return;
-    }
-
-    const normalizedAssignedTo = this.getNormalizedAssignedTo();
-    if (normalizedAssignedTo === null) {
-      this.errorMessage = 'Please select a member to assign this task.';
-      return;
-    }
-
-    const normalizedDifficulty = this.getNormalizedDifficulty();
-    if (normalizedDifficulty === null) {
-      this.errorMessage = 'Please select a valid difficulty.';
-      return;
-    }
+    if (this.isSubmitting) return;
 
     this.isSubmitting = true;
     this.errorMessage = '';
 
+    const title = this.getNormalizedTitle();
+    const assignedTo = this.getNormalizedAssignedTo();
+    const dueDate = this.getNormalizedDueDate();
+    const difficulty = this.getNormalizedDifficulty();
+    const points = this.getNormalizedPoints();
+
+    if (
+      title === null ||
+      assignedTo === null ||
+      dueDate === null ||
+      difficulty === null ||
+      points === null
+    ) {
+      this.isSubmitting = false;
+      this.showValidationErrors = true;
+      this.errorMessage = 'Please complete all required fields before submitting.';
+      return;
+    }
+
     const payload: CreateTaskPayload = {
-      title: normalizedTitle,
-      assigned_to: normalizedAssignedTo,
-      due_date: normalizedDueDate,
-      difficulty: normalizedDifficulty,
-      points: normalizedPoints,
+      title,
+      assigned_to: assignedTo,
+      due_date: dueDate,
+      difficulty,
+      points,
     };
 
     this.taskService.createTask(payload).subscribe({
@@ -159,7 +162,7 @@ export class CreateTaskComponent implements OnInit {
       },
       error: (err: Error) => {
         this.isSubmitting = false;
-        this.errorMessage = err.message;
+        this.errorMessage = err.message; // Keep the top banner for server errors
       },
     });
   }

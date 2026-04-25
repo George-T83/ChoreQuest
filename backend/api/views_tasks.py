@@ -4,7 +4,7 @@ from rest_framework.response import Response
 from django.conf import settings
 from firebase_admin import firestore
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from .household_utils import _get_user_household_doc
 
 
@@ -67,7 +67,14 @@ def create_task(request):
 
     # Parse due date
     try:
-        due_date = datetime.fromisoformat(due_date_str) if due_date_str else None
+        if due_date_str:
+            clean_date = due_date_str.split('T')[0]
+            
+            due_date = datetime.strptime(clean_date, "%Y-%m-%d").replace(hour=12)
+            
+            due_date = due_date.replace(tzinfo=timezone.utc)
+        else:
+            due_date = None
     except ValueError:
         return Response({'detail': 'Invalid due_date format. Use ISO 8601 (YYYY-MM-DD).'}, status=400)
 
