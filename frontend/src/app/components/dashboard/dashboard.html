@@ -13,17 +13,14 @@
       }
     </div>
     <div class="header-right">
-      <!-- Points counter -->
       <div class="points-counter" title="Your total points">
         <span class="points-star">⭐</span>
         <span class="points-value">{{ currentUserPoints }}</span>
       </div>
-
       <div class="profile-menu-container">
         <div class="avatar" (click)="toggleProfileMenu()" title="Profile Menu">
           {{ (currentUser?.displayName || currentUser?.email || '?').charAt(0).toUpperCase() }}
         </div>
-
         @if (isProfileMenuOpen) {
           <div class="profile-dropdown card">
             <div class="dropdown-header">
@@ -77,98 +74,15 @@
           </div>
         </div>
 
-        @if (tasksLoadError) {
-          <div class="error-banner card">
-            {{ tasksLoadError }}
-          </div>
-        }
-
-        <section class="section">
-          <div class="section-header">
-            <h3>ALL TASKS</h3>
-            @if (isAdmin(household)) {
-              <button class="btn-create-task" (click)="openCreateTask()">＋ Create Task</button>
-            }
-          </div>
-
-          @if (tasks$ | async; as tasks) {
-            @if (tasks.length === 0) {
-              <div class="empty-tasks card">
-                <p>
-                  No tasks yet.
-                  @if (isAdmin(household)) {
-                    Hit <strong>Create Task</strong> to assign the first one!
-                  } @else {
-                    Your admin hasn't assigned any tasks yet.
-                  }
-                </p>
-              </div>
-            } @else {
-              <div class="task-list">
-                @for (task of tasks; track task.id) {
-                  <div
-                    class="task-card card task--{{
-                      task.status === 'completed'
-                        ? 'done'
-                        : getUrgency(task.due_date, task.status) === 'OVERDUE'
-                          ? 'overdue'
-                          : 'normal'
-                    }}"
-                  >
-                    <div class="task-checkbox">
-                      <input
-                        type="checkbox"
-                        [checked]="task.status === 'completed'"
-                        [disabled]="true"
-                      />
-                    </div>
-
-                    <div class="task-details">
-                      <h4 [class.strike]="task.status === 'completed'">{{ task.title }}</h4>
-                      <p class="task-meta">{{ formatDueDate(task.due_date) }}</p>
-
-                      @if (task.status !== 'completed') {
-                        <div class="task-tags">
-                          @if (getUrgency(task.due_date, task.status) === 'Due today') {
-                            <span class="tag tag--warning">Due today</span>
-                          }
-                          @if (getUrgency(task.due_date, task.status) === 'OVERDUE') {
-                            <span class="tag tag--danger">OVERDUE</span>
-                          }
-                          <span class="tag tag--neutral">{{ task.difficulty }}</span>
-                          @if (task.points > 0) {
-                            <span class="tag tag--points">+{{ task.points }} pts</span>
-                          }
-                        </div>
-                      } @else {
-                        @if (task.points > 0) {
-                          <div class="task-tags">
-                            <span class="tag tag--points-earned"
-                              >+{{ task.points }} pts earned</span
-                            >
-                          </div>
-                        }
-                      }
-                    </div>
-
-                    <div class="task-actions">
-                      @if (task.status === 'completed') {
-                        <button class="btn-complete" disabled>Done</button>
-                      } @else if (isAssignedToMe(task.assigned_to)) {
-                        <button class="btn-complete" (click)="completeTask(task.id)">
-                          Complete
-                        </button>
-                      } @else {
-                        <button class="btn-complete btn-complete--locked" disabled>Locked</button>
-                      }
-                      <span class="assignee">{{ getMemberName(task.assigned_to, household) }}</span>
-                    </div>
-                  </div>
-                }
-              </div>
-            }
-          }
-        </section>
+        <app-task-list
+          [tasks]="(tasks$ | async) ?? []"
+          [household]="household"
+          [currentUserUid]="currentUser?.uid ?? ''"
+          [isAdmin]="isAdmin(household)"
+          [tasksLoadError]="tasksLoadError"
+          (completeTask)="completeTask($event)"
+          (openCreateTask)="openCreateTask()"
+        />
       } @else {
         <div class="empty-state card">
           <h2>You need a Household</h2>
@@ -201,7 +115,6 @@
     </div>
   </nav>
 
-  <!-- Create Task Modal — only rendered when open -->
   @if (isCreateTaskOpen) {
     @if (household$ | async; as household) {
       <app-create-task
