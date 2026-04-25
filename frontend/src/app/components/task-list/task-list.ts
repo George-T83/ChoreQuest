@@ -32,11 +32,15 @@ export class TaskListComponent {
 
   formatDueDate(dueDateStr: string | null): string {
     if (!dueDateStr) return 'No due date';
+
     const due = new Date(dueDateStr);
+    if (isNaN(due.getTime())) return 'Invalid date';
+
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     due.setHours(0, 0, 0, 0);
     const diff = (due.getTime() - today.getTime()) / (1000 * 60 * 60 * 24);
+
     if (diff < 0)
       return `Was due: ${due.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
     if (diff === 0) return 'Today';
@@ -45,13 +49,16 @@ export class TaskListComponent {
   }
 
   getUrgency(dueDateStr: string | null, status: string): string {
-    if (status === 'completed') return '';
-    if (!dueDateStr) return '';
+    if (status === 'completed' || !dueDateStr) return '';
+
     const due = new Date(dueDateStr);
+    if (isNaN(due.getTime())) return '';
+
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     due.setHours(0, 0, 0, 0);
     const diff = (due.getTime() - today.getTime()) / (1000 * 60 * 60 * 24);
+
     if (diff < 0) return 'OVERDUE';
     if (diff === 0) return 'Due today';
     return '';

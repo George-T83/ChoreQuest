@@ -12,14 +12,14 @@
   width: 100%;
 }
 
-  .section-header h3 {
-    font-size: 0.75rem;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: #9ca3af;
-    margin: 0;
-  }
+.section-header h3 {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #9ca3af;
+  margin: 0;
+}
 
 .btn-create-task {
   padding: 0.35rem 0.875rem;
@@ -32,9 +32,9 @@
   cursor: pointer;
 }
 
-  .btn-create-task:hover {
-    background: #6d28d9;
-  }
+.btn-create-task:hover {
+  background: #6d28d9;
+}
 
 .task-list {
   display: flex;
@@ -43,20 +43,22 @@
   width: 100%;
 }
 
+/* ── GRID LAYOUT FOR TASK CARD ── */
 .task-card {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 1rem 1.25rem;
+  display: grid;
+  /* Mobile default: 2 columns (Checkbox, Details) */
+  grid-template-columns: min-content 1fr;
+  gap: 0.75rem 1rem; /* row-gap column-gap */
+  padding: 1rem;
   border: 1.5px solid transparent;
   border-radius: 0.75rem;
   background: #ffffff;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
-  transition: border-color 0.2s, opacity 0.2s;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  transition:
+    border-color 0.2s,
+    opacity 0.2s;
   width: 100%;
   box-sizing: border-box;
-  min-height: 72px;
 }
 
 .task--overdue {
@@ -75,32 +77,33 @@
   color: #4a4a6a !important;
 }
 
+/* Column 1: Checkbox */
 .task-checkbox {
-  flex-shrink: 0;
+  grid-column: 1;
+  grid-row: 1;
   display: flex;
-  align-items: center;
-  justify-content: center;
-  align-self: center;
+  align-items: flex-start;
+  padding-top: 0.15rem; /* Optically aligns checkbox with the text */
 }
 
+/* Column 2: Details */
 .task-details {
-  flex: 1;
-  min-width: 0;
+  grid-column: 2;
+  grid-row: 1;
   display: flex;
   flex-direction: column;
   justify-content: center;
-  align-self: center;
+  min-width: 0; /* Prevents long text from blowing out the grid */
 }
 
-  .task-details h4 {
-    font-size: 0.9375rem;
-    font-weight: 600;
-    margin: 0 0 0.2rem;
-    color: #1a1a2e !important;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
+.task-details h4 {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  margin: 0 0 0.2rem;
+  color: #1a1a2e !important;
+  white-space: normal; /* Allows wrapping on mobile */
+  line-height: 1.3;
+}
 
 .strike {
   text-decoration: line-through;
@@ -113,6 +116,7 @@
   margin: 0 0 0.3rem;
 }
 
+/* Tags */
 .task-tags {
   display: flex;
   flex-wrap: wrap;
@@ -132,44 +136,45 @@
 }
 
 .tag--warning {
-  background: rgba(250,204,21,0.12);
+  background: rgba(250, 204, 21, 0.12);
   color: #d97706;
-  border: 1px solid rgba(250,204,21,0.3);
+  border: 1px solid rgba(250, 204, 21, 0.3);
 }
 
 .tag--danger {
-  background: rgba(239,68,68,0.15);
+  background: rgba(239, 68, 68, 0.15);
   color: #dc2626;
-  border: 1px solid rgba(239,68,68,0.35);
+  border: 1px solid rgba(239, 68, 68, 0.35);
 }
 
 .tag--neutral {
-  background: rgba(99,102,241,0.15);
+  background: rgba(99, 102, 241, 0.15);
   color: #4f46e5;
-  border: 1px solid rgba(99,102,241,0.3);
+  border: 1px solid rgba(99, 102, 241, 0.3);
 }
 
 .tag--points {
-  background: rgba(139,92,246,0.15);
+  background: rgba(139, 92, 246, 0.15);
   color: #7c3aed;
-  border: 1px solid rgba(139,92,246,0.3);
+  border: 1px solid rgba(139, 92, 246, 0.3);
 }
 
 .tag--points-earned {
-  background: rgba(34,197,94,0.12);
+  background: rgba(34, 197, 94, 0.12);
   color: #16a34a;
-  border: 1px solid rgba(34,197,94,0.3);
+  border: 1px solid rgba(34, 197, 94, 0.3);
 }
 
+/* Mobile Actions Row (Spans full width at the bottom) */
 .task-actions {
-  flex-shrink: 0;
+  grid-column: 1 / -1;
+  grid-row: 2;
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  justify-content: center;
-  gap: 0.5rem;
-  margin-left: auto;
-  align-self: center;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  border-top: 1px solid #f3f4f6; /* Clean divider line on mobile */
+  padding-top: 0.75rem;
 }
 
 .btn-complete {
@@ -184,14 +189,14 @@
   white-space: nowrap;
 }
 
-  .btn-complete:hover:not(:disabled) {
-    background: #15803d;
-  }
+.btn-complete:hover:not(:disabled) {
+  background: #15803d;
+}
 
-  .btn-complete:disabled {
-    opacity: 0.6;
-    cursor: default;
-  }
+.btn-complete:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
 
 .btn-complete--locked {
   background: #e5e7eb;
@@ -213,8 +218,8 @@
 }
 
 .error-banner {
-  background: rgba(239,68,68,0.1);
-  border: 1px solid rgba(239,68,68,0.35);
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.35);
   color: #dc2626;
   padding: 0.75rem 1rem;
   border-radius: 0.5rem;
@@ -224,35 +229,37 @@
   box-sizing: border-box;
 }
 
-/* ── Responsive ─────────────────────────────────────────────── */
+/* ── Responsive Desktop Overrides ─────────────────────────────── */
 
-/* Mobile */
-@media (max-width: 640px) {
-  .task-card {
-    padding: 0.875rem 1rem;
-    flex-wrap: wrap;
-  }
-
-  .task-actions {
-    width: 100%;
-    flex-direction: row;
-    justify-content: space-between;
-    align-items: center;
-    margin-top: 0.5rem;
-  }
-
-  .task-details h4 {
-    white-space: normal;
-  }
-}
-
-/* Desktop */
 @media (min-width: 641px) {
   .task-card {
-    padding: 1rem 1.5rem;
+    /* Desktop: 3 columns (Checkbox, Details, Actions) */
+    grid-template-columns: min-content 1fr auto;
+    padding: 1rem 1.25rem;
+    align-items: center;
+  }
+
+  .task-checkbox {
+    align-items: center;
+    padding-top: 0;
   }
 
   .task-details h4 {
     font-size: 1rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* Desktop Actions Row (Moves to the right, stacks vertically) */
+  .task-actions {
+    grid-column: 3;
+    grid-row: 1;
+    flex-direction: column;
+    align-items: flex-end;
+    justify-content: center;
+    gap: 0.5rem;
+    border-top: none;
+    padding-top: 0;
   }
 }
