@@ -1,4 +1,4 @@
-import { Component, inject, OnInit, ChangeDetectorRef } from '@angular/core';
+import { Component, inject, OnInit, ChangeDetectorRef, ViewChild, ElementRef, AfterViewInit } from '@angular/core';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { HouseholdService } from '../../../services/household.service';
@@ -10,11 +10,13 @@ import { HouseholdService } from '../../../services/household.service';
   templateUrl: './create-household.html',
   styleUrl: './create-household.css',
 })
-export class CreateHouseholdComponent implements OnInit {
+export class CreateHouseholdComponent implements OnInit, AfterViewInit {
   private readonly fb = inject(FormBuilder);
   private readonly householdService = inject(HouseholdService);
   private readonly router = inject(Router);
   private readonly cdr = inject(ChangeDetectorRef);
+
+  @ViewChild('nameInput') nameInput!: ElementRef<HTMLInputElement>;
 
   form!: FormGroup;
   loading = false;
@@ -24,6 +26,12 @@ export class CreateHouseholdComponent implements OnInit {
     this.form = this.fb.group({
       name: ['', [Validators.required, Validators.minLength(3), Validators.maxLength(100)]],
     });
+  }
+
+  ngAfterViewInit(): void {
+    if (this.nameInput) {
+      this.nameInput.nativeElement.focus();
+    }
   }
 
   get nameCtrl() {

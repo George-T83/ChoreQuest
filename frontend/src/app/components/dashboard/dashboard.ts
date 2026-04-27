@@ -1,4 +1,11 @@
-import { Component, inject, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
+import {
+  Component,
+  inject,
+  OnInit,
+  OnDestroy,
+  ChangeDetectorRef,
+  HostListener,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
 import { Auth } from '@angular/fire/auth';
@@ -8,7 +15,6 @@ import { TaskService } from '../../services/task';
 import { CreateTaskComponent } from '../create-task/create-task';
 import { Household, HouseholdMember } from '../../models/household.model';
 import { TaskListComponent } from '../task-list/task-list';
-
 
 @Component({
   selector: 'app-dashboard',
@@ -35,12 +41,26 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   currentUser: any = null;
   currentUserPoints = 0;
+  currentUserName: string | null = null;
 
   private authUnsubscribe: (() => void) | null = null;
   private pointsUnsubscribe: (() => void) | null = null;
 
   toggleProfileMenu() {
     this.isProfileMenuOpen = !this.isProfileMenuOpen;
+  }
+
+  @HostListener('document:click', ['$event'])
+  onDocumentClick(event: MouseEvent) {
+    if (!this.isProfileMenuOpen) return;
+
+    const target = event.target as HTMLElement | null;
+    if (!target) return;
+
+    if (!target.closest('.profile-menu-container')) {
+      this.isProfileMenuOpen = false;
+      this.cdr.detectChanges();
+    }
   }
 
   isAdmin(household: Household): boolean {
@@ -90,10 +110,20 @@ export class DashboardComponent implements OnInit, OnDestroy {
     const userDocRef = doc(this.firestore, `users/${uid}`);
     this.pointsUnsubscribe = onSnapshot(userDocRef, (snapshot) => {
       if (snapshot.exists()) {
-        this.currentUserPoints = snapshot.data()['points'] ?? 0;
+        const data = snapshot.data();
+        this.currentUserPoints = data['points'] ?? 0;
+        this.currentUserName = data['display_name'] || null;
         this.cdr.detectChanges();
       }
     });
+  }
+
+  getMyPendingTaskCount(tasks: any[]): number {
+    if (!this.currentUser) return 0;
+
+    return tasks.filter(
+      (task) => task.assigned_to === this.currentUser.uid && task.status !== 'completed',
+    ).length;
   }
 
   completeTask(taskId: string) {
