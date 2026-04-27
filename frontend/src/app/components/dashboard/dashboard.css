@@ -102,6 +102,51 @@
   cursor: pointer;
 }
 
+/* MOBILE NAVBAR FIX */
+@media (max-width: 480px) {
+  .app-header {
+    padding: 0.6rem 0.5rem;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  .header-left {
+    flex: 1;
+    min-width: 0;
+  }
+  .logo-text {
+    font-size: 1.1rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .header-center {
+    order: 3;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+  }
+  .header-right {
+    gap: 0.4rem;
+    flex-shrink: 0;
+  }
+  .points-counter {
+    padding: 0.2rem 0.4rem;
+    gap: 0.15rem;
+  }
+  .points-star {
+    font-size: 0.75rem;
+  }
+  .points-value {
+    font-size: 0.75rem;
+    min-width: auto;
+  }
+  .avatar {
+    width: 28px;
+    height: 28px;
+    font-size: 0.75rem;
+  }
+}
+
 /* MAIN CONTENT */
 .main-content {
   flex: 1;
