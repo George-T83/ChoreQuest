@@ -1,4 +1,4 @@
-import { Component, inject, OnInit, ChangeDetectorRef } from '@angular/core';
+import { Component, inject, OnInit, ChangeDetectorRef, ViewChild, ElementRef, AfterViewInit } from '@angular/core';
 import {
   AbstractControl,
   FormBuilder,
@@ -25,11 +25,13 @@ function codeValidator(control: AbstractControl): ValidationErrors | null {
   templateUrl: './join-household.html',
   styleUrl: './join-household.css',
 })
-export class JoinHouseholdComponent implements OnInit {
+export class JoinHouseholdComponent implements OnInit, AfterViewInit {
   private readonly fb = inject(FormBuilder);
   private readonly householdService = inject(HouseholdService);
   private readonly router = inject(Router);
   private readonly cdr = inject(ChangeDetectorRef);
+
+  @ViewChild('codeInput') codeInput!: ElementRef<HTMLInputElement>;
 
   form!: FormGroup;
   loading = false;
@@ -42,6 +44,12 @@ export class JoinHouseholdComponent implements OnInit {
         [Validators.required, Validators.minLength(6), Validators.maxLength(6), codeValidator],
       ],
     });
+  }
+
+  ngAfterViewInit(): void {
+    if (this.codeInput) {
+      this.codeInput.nativeElement.focus();
+    }
   }
 
   get codeCtrl() {

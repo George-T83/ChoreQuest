@@ -5,9 +5,12 @@
     </div>
     <div class="header-center">
       @if (tasks$ | async; as tasks) {
-        @if (tasks.length > 0) {
+        @if (getMyPendingTaskCount(tasks) > 0) {
           <span class="badge badge--success">
-            {{ tasks.length }} task{{ tasks.length === 1 ? '' : 's' }} assigned
+            {{ getMyPendingTaskCount(tasks) }} task{{
+              getMyPendingTaskCount(tasks) === 1 ? '' : 's'
+            }}
+            assigned to you
           </span>
         }
       }
@@ -19,22 +22,37 @@
       </div>
       <div class="profile-menu-container">
         <div class="avatar" (click)="toggleProfileMenu()" title="Profile Menu">
-          {{ (currentUser?.displayName || currentUser?.email || '?').charAt(0).toUpperCase() }}
+          {{
+            (currentUserName || currentUser?.displayName || currentUser?.email || '?')
+              .charAt(0)
+              .toUpperCase()
+          }}
         </div>
         @if (isProfileMenuOpen) {
           <div class="profile-dropdown card">
             <div class="dropdown-header">
-              <strong>{{ currentUser?.displayName || currentUser?.email || 'My Profile' }}</strong>
+              <strong>{{
+                currentUserName || currentUser?.displayName || currentUser?.email || 'My Profile'
+              }}</strong>
               <p class="dropdown-points">⭐ {{ currentUserPoints }} pts</p>
             </div>
             <hr class="dropdown-divider" />
             <ul class="dropdown-list">
-              <li><a>Profile Settings</a></li>
-              <li><a>Household Settings</a></li>
+              <li>
+                <a routerLink="/profile" (click)="isProfileMenuOpen = false">Profile Settings</a>
+              </li>
+
+              @if (household$ | async) {
+                <li>
+                  <a routerLink="/household-settings" (click)="isProfileMenuOpen = false"
+                    >Household Settings</a
+                  >
+                </li>
+              }
             </ul>
             <hr class="dropdown-divider" />
             <ul class="dropdown-list">
-              <li><a class="text-danger" (click)="logout()">Sign out</a></li>
+              <li><a class="text-danger" (click)="logout()">Log out</a></li>
             </ul>
           </div>
         }
@@ -108,10 +126,6 @@
     <div class="nav-item">
       <span class="icon">↗</span>
       <span>Leaderboard</span>
-    </div>
-    <div class="nav-item">
-      <span class="icon">○</span>
-      <span>Profile</span>
     </div>
   </nav>
 
