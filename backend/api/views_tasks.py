@@ -317,11 +317,9 @@ def update_task(request, task_id):
     if not household_data:
         return Response({'detail': 'You are not in a household.'}, status=400)
 
-    # 1. Admin Verification
     if household_data.get('admin_id') != uid:
         return Response({'detail': 'Only the household admin can edit tasks.'}, status=403)
 
-    # 2. Fetch the existing task
     task_ref = household_ref.collection('tasks').document(task_id)
     task_doc = task_ref.get()
     
@@ -329,8 +327,6 @@ def update_task(request, task_id):
         return Response({'detail': 'Task not found.'}, status=404)
         
     current_task_data = task_doc.to_dict()
-
-    # 3. Extract and sanitize new data (fallback to current if missing somehow)
     title = request.data.get('title', current_task_data.get('title', '')).strip()
     assigned_to = request.data.get('assigned_to', current_task_data.get('assigned_to', '')).strip()
     due_date_str = request.data.get('due_date', '')
@@ -366,7 +362,6 @@ def update_task(request, task_id):
     if assigned_to not in household_data.get('members', []):
         return Response({'detail': 'Assigned user is not a member of this household.'}, status=400)
 
-    # 4. Fetch assigned user's display name (only query DB if the assignee actually changed)
     assigned_to_name = current_task_data.get('assigned_to_name', 'Unknown')
     if assigned_to != current_task_data.get('assigned_to'):
         assigned_user_doc = db.collection('users').document(assigned_to).get()
@@ -374,7 +369,6 @@ def update_task(request, task_id):
             return Response({'detail': 'Assigned user not found.'}, status=404)
         assigned_to_name = assigned_user_doc.to_dict().get('display_name', 'Unknown')
 
-    # 5. Parse due date
     if due_date_str:
         try:
             clean_date = due_date_str.split('T')[0]
@@ -385,7 +379,6 @@ def update_task(request, task_id):
     else:
         due_date = current_task_data.get('due_date')
 
-    # 6. Prepare update payload
     updates = {
         'title': title,
         'assigned_to': assigned_to,
@@ -398,15 +391,35 @@ def update_task(request, task_id):
         'updated_at': firestore.SERVER_TIMESTAMP,
     }
 
-    # 7. Update Firestore
     write_result = task_ref.update(updates)
 
-    # 8. Merge and serialize the response data so Angular updates instantly
     updated_task_data = current_task_data.copy()
     updated_task_data.update(updates)
-    # Ensure updated_at is a real timestamp for the frontend response
     updated_task_data['updated_at'] = getattr(write_result, 'update_time', datetime.now(timezone.utc))
     
     response_data = _serialize_task(updated_task_data)
 
     return Response(response_data, status=200)
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def delete_task(request, task_id):
+    """
+    Admin-only. Deletes a task from the household.
+    """
+    uid = request.user.username
+    db = settings.FIREBASE_DB
+
+    household_data, household_ref = _get_user_household_doc(uid)
+    if not household_data:
+        return Response({'detail': 'You are not in a household.'}, status=400)
+
+    if household_data.get('admin_id') != uid:
+        return Response({'detail': 'Only the household admin can delete tasks.'}, status=403)
+
+    task_ref = household_ref.collection('tasks').document(task_id)
+    if not task_ref.get().exists:
+        return Response({'detail': 'Task not found.'}, status=404)
+
+    task_ref.delete()
+    return Response({'detail': 'Task deleted successfully.'}, status=200)
