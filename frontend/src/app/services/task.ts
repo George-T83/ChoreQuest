@@ -50,6 +50,17 @@ export class TaskService {
       );
   }
 
+  updateTask(taskId: string, payload: Partial<Task>): Observable<Task> {
+    return this.http.patch<Task>(`${API_BASE}/${taskId}/update/`, payload).pipe(
+      tap((updatedTask) => {
+        const currentTasks = this._tasks$.getValue();
+        const updatedTasksList = currentTasks.map((t) => (t.id === taskId ? updatedTask : t));
+        this._tasks$.next(updatedTasksList);
+      }),
+      catchError(this.handleError),
+    );
+  }
+
   clearTasks(): void {
     this._tasks$.next([]);
   }
