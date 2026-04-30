@@ -153,14 +153,26 @@
     </div>
 
     <div class="modal-footer">
-      <button class="btn btn--outline" (click)="close()" [disabled]="isSubmitting">Cancel</button>
-      <button class="btn btn--primary" (click)="submit()" [disabled]="isSubmitting">
-        @if (isSubmitting) {
-          Saving...
-        } @else {
-          Save Changes
-        }
+      <button
+        class="btn btn--danger"
+        (click)="deleteTask()"
+        [disabled]="isSubmitting || isDeleting"
+      >
+        {{ isDeleting ? 'Deleting...' : 'Delete Task' }}
       </button>
+
+      <div class="footer-actions">
+        <button class="btn btn--outline" (click)="close()" [disabled]="isSubmitting || isDeleting">
+          Cancel
+        </button>
+        <button class="btn btn--primary" (click)="submit()" [disabled]="isSubmitting || isDeleting">
+          @if (isSubmitting) {
+            Saving...
+          } @else {
+            Save Changes
+          }
+        </button>
+      </div>
     </div>
   </div>
 </div>

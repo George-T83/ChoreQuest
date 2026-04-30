@@ -83,6 +83,13 @@
                 }
               </div>
             }
+
+            <div class="assignee-badge">
+              <div class="assignee-avatar">
+                {{ getMemberName(task.assigned_to).charAt(0).toUpperCase() }}
+              </div>
+              <span class="assignee-name">{{ getMemberName(task.assigned_to) }}</span>
+            </div>
           </div>
 
           <div class="task-actions">
@@ -125,7 +132,6 @@
             } @else {
               <button class="btn-complete btn-complete--locked" disabled>Locked</button>
             }
-            <span class="assignee">{{ getMemberName(task.assigned_to) }}</span>
           </div>
         </div>
       }

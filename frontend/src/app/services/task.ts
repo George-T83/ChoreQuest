@@ -61,6 +61,17 @@ export class TaskService {
     );
   }
 
+  deleteTask(taskId: string): Observable<void> {
+    return this.http.delete<void>(`${API_BASE}/${taskId}/delete/`).pipe(
+      tap(() => {
+        const currentTasks = this._tasks$.getValue();
+        const updatedTasksList = currentTasks.filter((t) => t.id !== taskId);
+        this._tasks$.next(updatedTasksList);
+      }),
+      catchError(this.handleError),
+    );
+  }
+
   clearTasks(): void {
     this._tasks$.next([]);
   }
