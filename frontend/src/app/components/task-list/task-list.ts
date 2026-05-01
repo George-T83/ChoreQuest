@@ -114,7 +114,8 @@ export class TaskListComponent {
         } else if (response.points_awarded > 0) {
           this.showToast(`Great job! +${response.points_awarded} pts earned.`);
         }
-        this.completeTask.emit(taskId);
+        // Removed: this.completeTask.emit(taskId)
+        // TaskService already updates tasks$ stream directly
       },
       error: (err: Error) => {
         this.showToast(err.message);
