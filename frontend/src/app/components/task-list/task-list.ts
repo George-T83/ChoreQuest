@@ -2,6 +2,7 @@ import { Component, Input, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Task } from '../../models/task';
 import { Household } from '../../models/household';
+import { TaskService } from '../../services/task';
 
 @Component({
   selector: 'app-task-list',
@@ -22,26 +23,28 @@ export class TaskListComponent {
   @Output() openCreateTask = new EventEmitter<void>();
   @Output() editTask = new EventEmitter<Task>();
 
+  // ── Toast state (SCRUM-62) ────────────────────────────────────────────────
+  toastMessage: string = '';
+  toastVisible: boolean = false;
+  private toastTimer: any = null;
+
+  constructor(private taskService: TaskService) { }
+
   isAssignedToMe(assignedTo: string): boolean {
     return assignedTo === this.currentUserUid;
   }
 
   isTooEarly(dueDateStr: string | null, intervalDays: number | null | undefined): boolean {
     if (!dueDateStr || !intervalDays) return false;
-
     const currentDueDate = new Date(dueDateStr);
     const today = new Date();
-
     today.setHours(0, 0, 0, 0);
     currentDueDate.setHours(0, 0, 0, 0);
-
     if (intervalDays === 1) {
       return currentDueDate.getTime() > today.getTime();
     }
-
     const cycleStartDate = new Date(currentDueDate);
     cycleStartDate.setDate(currentDueDate.getDate() - intervalDays);
-
     return today.getTime() < cycleStartDate.getTime();
   }
 
@@ -61,15 +64,12 @@ export class TaskListComponent {
 
   formatDueDate(dueDateStr: string | null): string {
     if (!dueDateStr) return 'No due date';
-
     const due = new Date(dueDateStr);
     if (isNaN(due.getTime())) return 'Invalid date';
-
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     due.setHours(0, 0, 0, 0);
     const diff = (due.getTime() - today.getTime()) / (1000 * 60 * 60 * 24);
-
     if (diff < 0)
       return `Was due: ${due.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
     if (diff === 0) return 'Today';
@@ -79,34 +79,47 @@ export class TaskListComponent {
 
   getDisplayDueDate(task: any): string | null {
     if (!task.due_date) return null;
-
     if (this.isCooldown(task) && task.recurrence_interval_days) {
       const displayDate = new Date(task.due_date);
       displayDate.setDate(displayDate.getDate() - task.recurrence_interval_days);
       return displayDate.toISOString();
     }
-
     return task.due_date;
   }
 
   getUrgency(dueDateStr: string | null, status: string): string {
     if (status === 'completed' || !dueDateStr) return '';
-
     const due = new Date(dueDateStr);
     if (isNaN(due.getTime())) return '';
-
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     due.setHours(0, 0, 0, 0);
     const diff = (due.getTime() - today.getTime()) / (1000 * 60 * 60 * 24);
-
     if (diff < 0) return 'OVERDUE';
     if (diff === 0) return 'Due today';
     return '';
   }
 
+  // ── SCRUM-62: Complete with late penalty toast ────────────────────────────
   onComplete(taskId: string): void {
-    this.completeTask.emit(taskId);
+    const task = this.tasks.find(t => t.id === taskId);
+    const currentDueDate = task?.due_date ?? '';
+
+    this.taskService.completeTask(taskId, currentDueDate).subscribe({
+      next: (response) => {
+        if (response.was_late) {
+          this.showToast(
+            `Task completed late! −${response.points_deducted} point penalty applied. You earned ${response.points_awarded} pts.`
+          );
+        } else if (response.points_awarded > 0) {
+          this.showToast(`Great job! +${response.points_awarded} pts earned.`);
+        }
+        this.completeTask.emit(taskId);
+      },
+      error: (err: Error) => {
+        this.showToast(err.message);
+      },
+    });
   }
 
   onOpenCreateTask(): void {
@@ -115,5 +128,14 @@ export class TaskListComponent {
 
   onEditTask(task: Task): void {
     this.editTask.emit(task);
+  }
+
+  showToast(message: string): void {
+    if (this.toastTimer) clearTimeout(this.toastTimer);
+    this.toastMessage = message;
+    this.toastVisible = true;
+    this.toastTimer = setTimeout(() => {
+      this.toastVisible = false;
+    }, 4000);
   }
 }
