@@ -444,7 +444,7 @@ def update_task(request, task_id):
 
     updated_task_data = current_task_data.copy()
     updated_task_data.update(updates)
-    updated_task_data['updated_at'] = getattr(write_result, 'update_time', now)
+    updated_task_data['updated_at'] = getattr(write_result, 'update_time', datetime.now(timezone.utc))
 
     return Response(_serialize_task(updated_task_data), status=200)
 
