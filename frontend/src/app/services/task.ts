@@ -32,18 +32,29 @@ export class TaskService {
   completeTask(
     taskId: string,
     currentDueDate: string,
-  ): Observable<{ detail: string; points_awarded: number; is_recurring: boolean; task: Task }> {
+  ): Observable<{
+    detail: string;
+    points_awarded: number;
+    was_late: boolean;
+    points_deducted: number;
+    is_recurring: boolean;
+    task: Task;
+  }> {
     return this.http
       .post<{
         detail: string;
         points_awarded: number;
+        was_late: boolean;
+        points_deducted: number;
         is_recurring: boolean;
         task: Task;
       }>(`${API_BASE}/${taskId}/complete/`, { due_date: currentDueDate })
       .pipe(
         tap((response) => {
           const currentTasks = this._tasks$.getValue();
-          const updatedTasks = currentTasks.map((t) => (t.id === taskId ? response.task : t));
+          const updatedTasks = currentTasks.map((t) =>
+            t.id === taskId ? response.task : t
+          );
           this._tasks$.next(updatedTasks);
         }),
         catchError(this.handleError),
@@ -54,7 +65,9 @@ export class TaskService {
     return this.http.patch<Task>(`${API_BASE}/${taskId}/update/`, payload).pipe(
       tap((updatedTask) => {
         const currentTasks = this._tasks$.getValue();
-        const updatedTasksList = currentTasks.map((t) => (t.id === taskId ? updatedTask : t));
+        const updatedTasksList = currentTasks.map((t) =>
+          t.id === taskId ? updatedTask : t
+        );
         this._tasks$.next(updatedTasksList);
       }),
       catchError(this.handleError),

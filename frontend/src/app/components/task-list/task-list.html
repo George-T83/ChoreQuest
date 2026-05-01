@@ -1,125 +1,125 @@
+<!-- Toast notification -->
+@if (toastVisible) {
+<div class="toast" [class.toast--late]="toastMessage.includes('late')">
+  {{ toastMessage }}
+</div>
+}
+
 <section class="section">
   <div class="section-header">
     <h3>HOUSEHOLD TASKS</h3>
     @if (isAdmin) {
-      <button class="btn-create-task" (click)="onOpenCreateTask()">＋ Create Task</button>
+    <button class="btn-create-task" (click)="onOpenCreateTask()">＋ Create Task</button>
     }
   </div>
 
   @if (tasksLoadError) {
-    <div class="error-banner card">{{ tasksLoadError }}</div>
+  <div class="error-banner card">{{ tasksLoadError }}</div>
   }
 
   @if (!tasksLoadError && tasks.length === 0) {
-    <div class="empty-tasks card">
-      <p>
-        No tasks yet.
-        @if (isAdmin) {
-          Hit <strong>Create Task</strong> to assign the first one!
-        } @else {
-          Your admin hasn't assigned any tasks yet.
-        }
-      </p>
-    </div>
+  <div class="empty-tasks card">
+    <p>
+      No tasks yet.
+      @if (isAdmin) {
+      Hit <strong>Create Task</strong> to assign the first one!
+      } @else {
+      Your admin hasn't assigned any tasks yet.
+      }
+    </p>
+  </div>
   } @else {
-    <div class="task-list">
-      @for (task of tasks; track task.id) {
-        <div
-          class="task-card card task--{{
+  <div class="task-list">
+    @for (task of tasks; track task.id) {
+    <div class="task-card card task--{{
             task.status === 'completed'
               ? 'done'
               : getUrgency(task.due_date, task.status) === 'OVERDUE'
                 ? 'overdue'
                 : 'normal'
-          }}"
-        >
-          <div class="task-checkbox">
-            <input
-              type="checkbox"
-              (change)="onComplete(task.id)"
-              [checked]="task.status === 'completed' || isCooldown(task)"
-              [disabled]="
+          }}">
+      <div class="task-checkbox">
+        <input type="checkbox"
+               (change)="onComplete(task.id)"
+               [checked]="task.status === 'completed' || isCooldown(task)"
+               [disabled]="
                 !currentUserUid ||
                 task.status === 'completed' ||
                 !isAssignedToMe(task.assigned_to) ||
                 processingTaskIds.has(task.id) ||
                 isCooldown(task) ||
                 isFutureLocked(task)
-              "
-            />
+              " />
+      </div>
+
+      <div class="task-details">
+        <h4 [class.strike]="task.status === 'completed' || isCooldown(task)">
+          {{ task.title }}
+        </h4>
+
+        <p class="task-meta">{{ formatDueDate(getDisplayDueDate(task)) }}</p>
+
+        @if (task.status !== 'completed') {
+        <div class="task-tags">
+          @if (!isCooldown(task)) {
+          @if (getUrgency(getDisplayDueDate(task), task.status) === 'Due today') {
+          <span class="tag tag--warning">Due today</span>
+          }
+          @if (getUrgency(getDisplayDueDate(task), task.status) === 'OVERDUE') {
+          <span class="tag tag--danger">OVERDUE</span>
+          }
+          }
+          <span class="tag tag--neutral">{{ task.difficulty }}</span>
+          @if (task.points > 0) {
+          <span class="tag tag--points">+{{ task.points }} pts</span>
+          }
+          @if (task.is_recurring && task.recurrence_interval_days) {
+          <span class="tag tag--recurring">
+            🔁 {{ task.recurrence_interval_days === 1 ? 'Daily' : 'Every ' + task.recurrence_interval_days + ' days' }}
+          </span>
+          }
+        </div>
+        } @else {
+        <div class="task-tags">
+          @if (task.was_late) {
+          <span class="tag tag--danger">Late! −{{ task.points_deducted }} pts</span>
+          }
+          @if (task.points > 0) {
+          <span class="tag tag--points-earned">+{{ task.points }} pts earned</span>
+          }
+        </div>
+        }
+
+        <div class="assignee-badge">
+          <div class="assignee-avatar">
+            {{ getMemberName(task.assigned_to).charAt(0).toUpperCase() }}
           </div>
+          <span class="assignee-name">{{ getMemberName(task.assigned_to) }}</span>
+        </div>
+      </div>
 
-          <div class="task-details">
-            <h4 [class.strike]="task.status === 'completed' || isCooldown(task)">
-              {{ task.title }}
-            </h4>
-
-            <p class="task-meta">{{ formatDueDate(getDisplayDueDate(task)) }}</p>
-
-            @if (task.status !== 'completed') {
-              <div class="task-tags">
-                @if (!isCooldown(task)) {
-                  @if (getUrgency(getDisplayDueDate(task), task.status) === 'Due today') {
-                    <span class="tag tag--warning">Due today</span>
-                  }
-                  @if (getUrgency(getDisplayDueDate(task), task.status) === 'OVERDUE') {
-                    <span class="tag tag--danger">OVERDUE</span>
-                  }
-                }
-
-                <span class="tag tag--neutral">{{ task.difficulty }}</span>
-                @if (task.points > 0) {
-                  <span class="tag tag--points">+{{ task.points }} pts</span>
-                }
-                @if (task.is_recurring && task.recurrence_interval_days) {
-                  <span class="tag tag--recurring">
-                    🔁
-                    {{
-                      task.recurrence_interval_days === 1
-                        ? 'Daily'
-                        : 'Every ' + task.recurrence_interval_days + ' days'
-                    }}
-                  </span>
-                }
-              </div>
-            }
-
-            <div class="assignee-badge">
-              <div class="assignee-avatar">
-                {{ getMemberName(task.assigned_to).charAt(0).toUpperCase() }}
-              </div>
-              <span class="assignee-name">{{ getMemberName(task.assigned_to) }}</span>
-            </div>
-          </div>
-
-          <div class="task-actions">
-            @if (isAdmin) {
-              <button
-                class="btn-icon btn-edit"
+      <div class="task-actions">
+        @if (isAdmin) {
+        <button class="btn-icon btn-edit"
                 title="Edit Task"
                 (click)="onEditTask(task)"
-                [disabled]="processingTaskIds.has(task.id)"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                  <path
-                    d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z"
-                  />
-                </svg>
-              </button>
-            }
+                [disabled]="processingTaskIds.has(task.id)">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+            <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+          </svg>
+        </button>
+        }
 
-            @if (task.status === 'completed') {
-              <button class="btn-complete" disabled>Done</button>
-            } @else if (isAssignedToMe(task.assigned_to)) {
-              <button
-                class="btn-complete"
+        @if (task.status === 'completed') {
+        <button class="btn-complete" disabled>Done</button>
+        } @else if (isAssignedToMe(task.assigned_to)) {
+        <button class="btn-complete"
                 [class.btn-complete--locked]="isCooldown(task) || isFutureLocked(task)"
                 [disabled]="
                   processingTaskIds.has(task.id) || isCooldown(task) || isFutureLocked(task)
                 "
-                (click)="onComplete(task.id)"
-              >
-                {{
+                (click)="onComplete(task.id)">
+          {{
                   processingTaskIds.has(task.id)
                     ? 'Completing...'
                     : isCooldown(task)
@@ -127,14 +127,14 @@
                       : isFutureLocked(task)
                         ? 'Not Due Yet'
                         : 'Complete'
-                }}
-              </button>
-            } @else {
-              <button class="btn-complete btn-complete--locked" disabled>Locked</button>
-            }
-          </div>
-        </div>
-      }
+          }}
+        </button>
+        } @else {
+        <button class="btn-complete btn-complete--locked" disabled>Locked</button>
+        }
+      </div>
     </div>
+    }
+  </div>
   }
 </section>
