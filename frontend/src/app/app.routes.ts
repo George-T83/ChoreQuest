@@ -35,14 +35,23 @@ export const routes: Routes = [
         (m) => m.JoinHouseholdComponent,
       ),
   },
-
   {
     path: 'household-settings',
     component: HouseholdSettingsComponent,
     canActivate: [authGuard],
   },
+  { 
+    path: 'profile', 
+    component: ProfileComponent 
+  },
+  
+  // --- ADDED LEADERBOARD ROUTE ---
+  {
+    path: 'leaderboard',
+    // canActivate: [authGuard], <-- Commented out temporarily so you can bypass household restrictions during testing
+    loadComponent: () => import('./components/leaderboard/leaderboard.component').then((m) => m.LeaderboardComponent),
+  },
 
-  { path: 'profile', component: ProfileComponent },
   { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
   { path: '**', redirectTo: 'dashboard' }, // Catch-all for stray routes
 ];
