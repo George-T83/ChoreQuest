@@ -48,7 +48,7 @@ export const routes: Routes = [
   // --- ADDED LEADERBOARD ROUTE ---
   {
     path: 'leaderboard',
-    // canActivate: [authGuard], <-- Commented out temporarily so you can bypass household restrictions during testing
+    canActivate: [authGuard],
     loadComponent: () => import('./components/leaderboard/leaderboard.component').then((m) => m.LeaderboardComponent),
   },
 
