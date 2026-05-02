@@ -235,3 +235,37 @@ def leave_household(request):
     doc_ref.collection('memberships').document(uid).delete()
     
     return Response({'detail': 'You have left the household.'}, status=200)
+
+
+# --- NEW ENDPOINT ADDED BELOW ---
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def reset_leaderboard(request):
+    """
+    Admin-only. Resets points and total_tasks_completed to 0 for all members in the household.
+    """
+    uid = request.user.username
+    db = settings.FIREBASE_DB
+
+    data, doc_ref = _get_user_household_doc(uid)
+    
+    if not data or not doc_ref:
+        return Response({'detail': 'Not in any household.'}, status=400)
+        
+    if data.get('admin_id') != uid:
+        return Response({'detail': 'Only the household admin can reset the leaderboard.'}, status=403)
+        
+    uids = data.get('members', [])
+    
+    if uids:
+        batch = db.batch()
+        for member_uid in uids:
+            user_ref = db.collection('users').document(member_uid)
+            batch.update(user_ref, {
+                'points': 0,
+                'total_tasks_completed': 0
+            })
+        batch.commit()
+        
+    return Response({'detail': 'Leaderboard reset successfully.'}, status=200)
