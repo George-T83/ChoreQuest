@@ -162,7 +162,6 @@ def get_household_tasks(request):
     tasks = []
     for doc in task_docs:
         task = doc.to_dict()
-        # Backwards compatibility for tasks created before these fields existed
         if 'points' not in task:
             task['points'] = 0
         if 'is_recurring' not in task:
@@ -180,13 +179,9 @@ def complete_task(request, task_id):
     """
     Marks a task as completed. Only the assigned user can complete it.
 
-    SCRUM-62 additions:
-    - Applies a 20% late penalty if completed after due_date + 12hr grace period.
-    - For recurring tasks completed late, resets next due_date from today
-      instead of old due_date to avoid a permanent overdue cycle.
-    - Returns was_late and points_deducted for frontend toast notification.
-
-    Uses a Firestore transaction for atomicity.
+    SCRUM-62: Penalty calculation is inside the transaction so if the
+    transaction retries due to contention, penalty is always recalculated
+    from the latest task state rather than a stale pre-transaction read.
     """
     uid = request.user.username
     db  = settings.FIREBASE_DB
@@ -210,35 +205,12 @@ def complete_task(request, task_id):
             status=403,
         )
 
-    # ── Pre-calculate penalty (read-only, outside transaction) ────────────────
-    base_points = task.get('points', 0)
-    try:
-        base_points = max(0, int(base_points))
-    except (ValueError, TypeError):
-        base_points = 0
+    # ── Shared result container so transaction can pass data back out ─────────
+    result = {}
 
-    due_date_raw = task.get('due_date')
-    if hasattr(due_date_raw, 'isoformat'):
-        due_date = due_date_raw
-        if due_date.tzinfo is None:
-            due_date = due_date.replace(tzinfo=timezone.utc)
-    elif isinstance(due_date_raw, str):
-        try:
-            due_date = datetime.fromisoformat(due_date_raw)
-            if due_date.tzinfo is None:
-                due_date = due_date.replace(tzinfo=timezone.utc)
-        except ValueError:
-            due_date = None
-    else:
-        due_date = None
-
-    points_to_award, was_late, points_deducted = _calculate_penalty(
-        base_points, due_date, now
-    )
-
-    # ── Firestore transaction ──────────────────────────────────────────────────
     @firestore.transactional
     def update_task_and_award_points(transaction):
+        # ── Read task inside transaction (fresh state on every retry) ─────────
         task_doc_tx = task_ref.get(transaction=transaction)
         if not task_doc_tx.exists:
             raise ValueError('Task not found.')
@@ -252,7 +224,7 @@ def complete_task(request, task_id):
         db_due_date   = task_tx.get('due_date')
         interval_days = task_tx.get('recurrence_interval_days', None)
 
-        # Idempotency guard for recurring tasks
+        # ── Idempotency guard for recurring tasks ─────────────────────────────
         if is_recurring and client_due_date_str and db_due_date:
             client_date_only = client_due_date_str.split('T')[0]
             if hasattr(db_due_date, 'strftime'):
@@ -262,7 +234,7 @@ def complete_task(request, task_id):
             if client_date_only != db_date_only:
                 raise ValueError('Task cycle mismatch. This cycle was already completed.')
 
-        # Rapid re-completion guard
+        # ── Rapid re-completion guard ─────────────────────────────────────────
         last_completed = task_tx.get('completed_at')
         if last_completed and is_recurring:
             try:
@@ -277,11 +249,36 @@ def complete_task(request, task_id):
             except (TypeError, ValueError, AttributeError):
                 pass
 
+        # ── Penalty calculation INSIDE transaction (fresh task state) ─────────
+        base_points = task_tx.get('points', 0)
+        try:
+            base_points = max(0, int(base_points))
+        except (ValueError, TypeError):
+            base_points = 0
+
+        due_date_raw = task_tx.get('due_date')
+        if hasattr(due_date_raw, 'isoformat'):
+            due_date = due_date_raw
+            if due_date.tzinfo is None:
+                due_date = due_date.replace(tzinfo=timezone.utc)
+        elif isinstance(due_date_raw, str):
+            try:
+                due_date = datetime.fromisoformat(due_date_raw)
+                if due_date.tzinfo is None:
+                    due_date = due_date.replace(tzinfo=timezone.utc)
+            except ValueError:
+                due_date = None
+        else:
+            due_date = None
+
+        points_to_award, was_late, points_deducted = _calculate_penalty(
+            base_points, due_date, now
+        )
+
         # ── Calculate next due date for recurring tasks ────────────────────────
         if is_recurring and interval_days and int(interval_days) >= 1:
             interval = timedelta(days=int(interval_days))
             if was_late:
-                # SCRUM-62: Reset from today so they're not stuck in overdue loop
                 new_due_date = now + interval
             else:
                 if hasattr(db_due_date, 'isoformat'):
@@ -326,11 +323,23 @@ def complete_task(request, task_id):
 
         updated_task_data = task_tx.copy()
         updated_task_data.update(updates)
-        return points_to_award, is_recurring, updated_task_data
+
+        # Store results for response outside transaction
+        result['points_to_award']  = points_to_award
+        result['was_late']         = was_late
+        result['points_deducted']  = points_deducted
+        result['is_recurring']     = is_recurring
+        result['updated_task']     = updated_task_data
 
     try:
         transaction = db.transaction()
-        awarded, is_recurring, updated_task = update_task_and_award_points(transaction)
+        update_task_and_award_points(transaction)
+
+        awarded         = result.get('points_to_award', 0)
+        was_late        = result.get('was_late', False)
+        points_deducted = result.get('points_deducted', 0)
+        is_recurring    = result.get('is_recurring', False)
+        updated_task    = result.get('updated_task', {})
 
         if updated_task.get('completed_at') == firestore.SERVER_TIMESTAMP:
             updated_task['completed_at'] = now
@@ -362,6 +371,7 @@ def update_task(request, task_id):
     """
     uid = request.user.username
     db = settings.FIREBASE_DB
+    now = datetime.now(timezone.utc)
 
     household_data, household_ref = _get_user_household_doc(uid)
     if not household_data:
