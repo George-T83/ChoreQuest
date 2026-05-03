@@ -12,7 +12,7 @@ import { Router, RouterModule } from '@angular/router';
 import { Auth } from '@angular/fire/auth';
 import { Firestore, doc, onSnapshot } from '@angular/fire/firestore';
 import { BehaviorSubject, combineLatest } from 'rxjs';
-import { finalize, map, take } from 'rxjs/operators';
+import { map } from 'rxjs/operators';
 import { HouseholdService } from '../../services/household';
 import { TaskService } from '../../services/task';
 import { CreateTaskComponent } from '../create-task/create-task';
@@ -39,7 +39,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   household$ = this.householdService.household$;
 
   filterState = {
-    status: 'All',
+    status: 'Active',
     assignee: 'All',
     difficulty: 'All',
     pointsMin: null as number | null,
@@ -70,9 +70,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
             isOverdue = due.getTime() < today.getTime();
           }
 
+          if (filters.status === 'Active' && isCompleted) return false;
           if (filters.status === 'Completed' && !isCompleted) return false;
           if (filters.status === 'Overdue' && !isOverdue) return false;
-          // "Pending" means it is incomplete, but NOT overdue yet
+          // "Pending" means incomplete and NOT overdue yet
           if (filters.status === 'Pending' && (isCompleted || isOverdue)) return false;
         }
         if (filters.assignee !== 'All' && task.assigned_to !== filters.assignee) return false;
@@ -124,15 +125,12 @@ export class DashboardComponent implements OnInit, OnDestroy {
   isCreateTaskOpen = false;
   tasksLoadError = '';
 
-  // NEW: State for Edit Task Modal
   isEditTaskOpen = false;
   taskToEdit: Task | null = null;
 
   currentUser: any = null;
   currentUserPoints = 0;
   currentUserName: string | null = null;
-
-  processingTaskIds = new Set<string>();
 
   private authUnsubscribe: (() => void) | null = null;
   private pointsUnsubscribe: (() => void) | null = null;
@@ -162,10 +160,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
     return household.admin_id === this.currentUser?.uid;
   }
 
-  isAssignedToMe(assignedTo: string): boolean {
-    return assignedTo === this.currentUser?.uid;
-  }
-
   getMembers(household: Household): HouseholdMember[] {
     return household.members as HouseholdMember[];
   }
@@ -182,7 +176,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.reloadHouseholdTasks();
   }
 
-  // NEW: Edit Task methods
   openEditTask(task: Task) {
     this.taskToEdit = task;
     this.isEditTaskOpen = true;
@@ -231,29 +224,20 @@ export class DashboardComponent implements OnInit, OnDestroy {
     ).length;
   }
 
-  completeTask(taskId: string) {
-    this.processingTaskIds.add(taskId);
+  getMyOverdueTaskCount(tasks: any[]): number {
+    if (!this.currentUser) return 0;
 
-    // FIX: Changed from tasks$ to allTasks$ to guarantee the task is found even if filtered out
-    this.allTasks$.pipe(take(1)).subscribe((tasks) => {
-      const taskToComplete = tasks.find((t) => t.id === taskId);
-      const currentDueDate = taskToComplete?.due_date || '';
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
 
-      this.taskService
-        .completeTask(taskId, currentDueDate)
-        .pipe(
-          finalize(() => {
-            this.processingTaskIds.delete(taskId);
-            this.cdr.detectChanges();
-          }),
-        )
-        .subscribe({
-          next: () => {},
-          error: (err: Error) => {
-            alert(err.message);
-          },
-        });
-    });
+    return tasks.filter((task) => {
+      if (task.assigned_to !== this.currentUser.uid) return false;
+      if (task.status === 'completed') return false;
+      if (!task.due_date) return false;
+      const due = new Date(task.due_date);
+      due.setHours(0, 0, 0, 0);
+      return due.getTime() < today.getTime();
+    }).length;
   }
 
   ngOnInit() {
