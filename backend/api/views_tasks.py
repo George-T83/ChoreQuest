@@ -29,7 +29,9 @@ def _calculate_penalty(base_points: int, due_date, now: datetime):
     """
     Returns (points_to_award, was_late, points_deducted).
     12-hour grace period before penalty kicks in.
-    Penalty is 20% of base points, minimum 0.
+    Penalty is floored to an integer at 20%.
+    Awarded points are computed from 80% and floored to an integer.
+    Example: 21 points -> penalty 4, awarded 16.
     """
     if due_date is None:
         return base_points, False, 0
@@ -42,8 +44,8 @@ def _calculate_penalty(base_points: int, due_date, now: datetime):
     if now <= deadline_with_grace:
         return base_points, False, 0
 
-    penalty = int(base_points * LATE_PENALTY_PERCENT)
-    points_to_award = max(0, base_points - penalty)
+    penalty = max(0, math.floor(base_points * LATE_PENALTY_PERCENT))
+    points_to_award = max(0, math.floor(base_points * (1 - LATE_PENALTY_PERCENT)))
     return points_to_award, True, penalty
 
 
