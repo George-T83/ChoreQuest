@@ -163,6 +163,10 @@
   border: 1px solid var(--border);
 }
 
+.app-container {
+  position: relative;
+}
+
 /* HOUSEHOLD HEADER */
 .household-header {
   display: flex;

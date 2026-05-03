@@ -1,4 +1,4 @@
-import secrets
+﻿import secrets
 import string
 import uuid
 from rest_framework.decorators import api_view, permission_classes
@@ -235,3 +235,80 @@ def leave_household(request):
     doc_ref.collection('memberships').document(uid).delete()
     
     return Response({'detail': 'You have left the household.'}, status=200)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def reset_leaderboard(request):
+    """
+    Admin-only. Saves a cycle snapshot to history, then zeroes all member points.
+    Aborts if no points were earned this cycle.
+    """
+    uid = request.user.username
+    db  = settings.FIREBASE_DB
+
+    data, household_ref = _get_user_household_doc(uid)
+    if not data:
+        return Response({'detail': 'You are not in a household.'}, status=400)
+
+    if data.get('admin_id') != uid:
+        return Response({'detail': 'Only the household admin can reset the leaderboard.'}, status=403)
+
+    member_uids = data.get('members', [])
+    if not member_uids:
+        return Response({'detail': 'No members found.'}, status=400)
+
+    # ── Fetch all member point totals ──────────────────────────────────────────
+    user_refs  = [db.collection('users').document(m) for m in member_uids]
+    user_docs  = db.get_all(user_refs)
+
+    standings = []
+    for doc in user_docs:
+        if doc.exists:
+            d = doc.to_dict()
+            standings.append({
+                'uid':    doc.id,
+                'name':   d.get('display_name', 'Unknown'),
+                'points': d.get('points', 0),
+            })
+
+    # ── Zero-point edge case ───────────────────────────────────────────────────
+    total_points = sum(s['points'] for s in standings)
+    if total_points == 0:
+        return Response(
+            {'detail': 'Cannot save history: No points were earned this cycle.'},
+            status=400,
+        )
+
+    # ── Determine winner ───────────────────────────────────────────────────────
+    standings.sort(key=lambda s: s['points'], reverse=True)
+    winner = standings[0]
+
+    # ── Save snapshot to history subcollection ────────────────────────────────
+    import uuid as _uuid
+    from datetime import datetime, timezone as _tz
+    history_id   = str(_uuid.uuid4())
+    history_ref  = household_ref.collection('history').document(history_id)
+    history_ref.set({
+        'cycle_end_date': firestore.SERVER_TIMESTAMP,
+        'winner_uid':     winner['uid'],
+        'winner_name':    winner['name'],
+        'winner_points':  winner['points'],
+        'standings':      standings,
+    })
+
+    # ── Zero all member points via batch ──────────────────────────────────────
+    batch = db.batch()
+    for doc in user_docs:
+        if doc.exists:
+            batch.update(db.collection('users').document(doc.id), {'points': 0})
+    try:
+        batch.commit()
+    except Exception as e:
+        return Response({'detail': f'Batch commit failed: {str(e)}'}, status=500)
+
+    return Response({
+        'detail':        'Leaderboard reset successfully.',
+        'winner_name':   winner['name'],
+        'winner_points': winner['points'],
+        'cycle_saved':   True,
+    }, status=200)
