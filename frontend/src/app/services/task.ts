@@ -29,32 +29,9 @@ export class TaskService {
     );
   }
 
-<<<<<<< HEAD
-  completeTask(
-    taskId: string,
-    currentDueDate: string,
-  ): Observable<{
-    detail: string;
-    points_awarded: number;
-    was_late: boolean;
-    points_deducted: number;
-    is_recurring: boolean;
-    task: Task;
-  }> {
-    return this.http
-      .post<{
-        detail: string;
-        points_awarded: number;
-        was_late: boolean;
-        points_deducted: number;
-        is_recurring: boolean;
-        task: Task;
-      }>(`${API_BASE}/${taskId}/complete/`, { due_date: currentDueDate })
-=======
   completeTask(taskId: string, currentDueDate: string): Observable<CompleteTaskResponse> {
     return this.http
       .post<CompleteTaskResponse>(`${API_BASE}/${taskId}/complete/`, { due_date: currentDueDate })
->>>>>>> f8e5588 (feat: add ngx-toastr for notifications and enhance dashboard UI)
       .pipe(
         tap((response) => {
           const currentTasks = this._tasks$.getValue();

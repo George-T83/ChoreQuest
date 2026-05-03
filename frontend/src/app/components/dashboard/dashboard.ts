@@ -24,14 +24,7 @@ import { EditTaskComponent } from '../edit-task/edit-task';
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [
-    CommonModule,
-    RouterModule,
-    FormsModule,
-    CreateTaskComponent,
-    TaskListComponent,
-    EditTaskComponent,
-  ],
+  imports: [CommonModule, RouterModule, FormsModule, CreateTaskComponent, TaskListComponent, EditTaskComponent],
   templateUrl: './dashboard.html',
   styleUrls: ['./dashboard.css'],
 })
@@ -66,8 +59,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     map(([tasks, filters]) => {
       let filtered = tasks.filter((task) => {
         if (filters.status !== 'All') {
-          const isCompleted = task.status === 'completed' || !!task.completed_at;
-          const isCooldown = !!task.completed_at;
+          const isCompleted = task.status === 'completed';
           let isOverdue = false;
 
           if (!isCompleted && task.due_date) {
@@ -80,7 +72,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
           if (filters.status === 'Completed' && !isCompleted) return false;
           if (filters.status === 'Overdue' && !isOverdue) return false;
-          if (filters.status === 'Incomplete' && (isCompleted || isCooldown)) return false;
+          // "Pending" means it is incomplete, but NOT overdue yet
+          if (filters.status === 'Pending' && (isCompleted || isOverdue)) return false;
         }
         if (filters.assignee !== 'All' && task.assigned_to !== filters.assignee) return false;
         if (filters.difficulty !== 'All' && task.difficulty !== filters.difficulty) return false;
@@ -236,26 +229,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
     return tasks.filter(
       (task) => task.assigned_to === this.currentUser.uid && task.status !== 'completed',
     ).length;
-  }
-
-  getMyLateTaskCount(tasks: any[]): number {
-    if (!this.currentUser) return 0;
-
-    return tasks.filter((task) => {
-      const isCompletedLike = task.status === 'completed' || !!task.completed_at;
-
-      if (task.assigned_to !== this.currentUser.uid || isCompletedLike) return false;
-      if (!task.due_date) return false;
-
-      const due = new Date(task.due_date);
-      if (isNaN(due.getTime())) return false;
-
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      due.setHours(0, 0, 0, 0);
-
-      return due.getTime() < today.getTime();
-    }).length;
   }
 
   completeTask(taskId: string) {
