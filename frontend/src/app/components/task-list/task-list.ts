@@ -18,11 +18,11 @@ export class TaskListComponent {
   @Input() currentUserUid: string = '';
   @Input() isAdmin: boolean = false;
   @Input() tasksLoadError: string = '';
-  @Input() processingTaskIds: Set<string> = new Set<string>();
 
-  @Output() completeTask = new EventEmitter<string>();
   @Output() openCreateTask = new EventEmitter<void>();
   @Output() editTask = new EventEmitter<Task>();
+
+  processingTaskIds = new Set<string>();
 
   constructor(
     private taskService: TaskService,
@@ -34,7 +34,7 @@ export class TaskListComponent {
   }
 
   isCompleted(task: any): boolean {
-    return task.status === 'completed' || !!task.completed_at;
+    return task.status === 'completed';
   }
 
   isTooEarly(dueDateStr: string | null, intervalDays: number | null | undefined): boolean {
@@ -104,31 +104,40 @@ export class TaskListComponent {
   }
 
   onComplete(taskId: string): void {
+    if (this.processingTaskIds.has(taskId)) return;
+
     const task = this.tasks.find((t) => t.id === taskId);
     const currentDueDate = task?.due_date ?? '';
 
+    this.processingTaskIds.add(taskId);
+
     this.taskService.completeTask(taskId, currentDueDate).subscribe({
       next: (response) => {
+        this.processingTaskIds.delete(taskId);
         if (response.was_late) {
           this.toastr.warning(
-            `${response.points_deducted} point penalty applied. You still earned ${response.points_awarded} pts!`,
-            '⏰ Late Completion',
-            { enableHtml: true, timeOut: 5000 },
+            `−${response.points_deducted} pt late penalty applied. You still earned ${response.points_awarded} pts!`,
+            '⏰ Better late than never!',
+            { enableHtml: true, timeOut: 6000 },
           );
         } else if (response.points_awarded > 0) {
           this.toastr.success(
-            `You earned ${response.points_awarded} pts. Great work!`,
-            '✓ Task Completed',
+            `+${response.points_awarded} pts added to your score`,
+            '🏆 Quest complete!',
             { enableHtml: true },
           );
         } else {
-          this.toastr.success('Task completed successfully!', '✓ Task Completed', {
+          this.toastr.success('Chore cleared from the board.', '✅ Done!', {
             enableHtml: true,
           });
         }
       },
       error: (err: Error) => {
-        this.toastr.error(err.message, '✕ Error', { enableHtml: true, timeOut: 5000 });
+        this.processingTaskIds.delete(taskId);
+        this.toastr.error(err.message, '❌ Something went wrong', {
+          enableHtml: true,
+          timeOut: 5000,
+        });
       },
     });
   }

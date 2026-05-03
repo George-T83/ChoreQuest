@@ -9,6 +9,7 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { ToastrService } from 'ngx-toastr';
 import { TaskService } from '../../services/task';
 import { HouseholdMember } from '../../models/household';
 import { Task } from '../../models/task';
@@ -40,6 +41,7 @@ import { provideNativeDateAdapter } from '@angular/material/core';
 export class EditTaskComponent implements OnInit {
   private taskService = inject(TaskService);
   private cdr = inject(ChangeDetectorRef);
+  private toastr = inject(ToastrService);
 
   @Input() task!: Task;
   @Input() members: HouseholdMember[] = [];
@@ -57,6 +59,7 @@ export class EditTaskComponent implements OnInit {
 
   isSubmitting = false;
   isDeleting = false;
+  isReopening = false;
   errorMessage = '';
   showValidationErrors = false;
 
@@ -159,8 +162,12 @@ export class EditTaskComponent implements OnInit {
     );
   }
 
+  get isBusy(): boolean {
+    return this.isSubmitting || this.isDeleting || this.isReopening;
+  }
+
   deleteTask() {
-    if (this.isSubmitting || this.isDeleting) return;
+    if (this.isBusy) return;
 
     if (!confirm('Are you sure you want to delete this task? This cannot be undone.')) {
       return;
@@ -173,7 +180,9 @@ export class EditTaskComponent implements OnInit {
     this.taskService.deleteTask(this.task.id).subscribe({
       next: () => {
         this.isDeleting = false;
-        alert(`Task "${this.task.title}" has been deleted.`);
+        this.toastr.error(`"${this.task.title}" has been permanently deleted.`, '🗑️ Task Deleted', {
+          timeOut: 4000,
+        });
         this.close();
       },
       error: (err: Error) => {
@@ -184,12 +193,38 @@ export class EditTaskComponent implements OnInit {
     });
   }
 
+  onReopen() {
+    if (this.isBusy) return;
+
+    this.isReopening = true;
+    this.errorMessage = '';
+    this.cdr.detectChanges();
+
+    this.taskService.reopenTask(this.task.id).subscribe({
+      next: () => {
+        this.isReopening = false;
+        this.toastr.success(
+          `"${this.task.title}" is back in the queue.`,
+          '🔄 Task Reopened',
+          { timeOut: 4000 },
+        );
+        this.taskUpdated.emit();
+        this.close();
+      },
+      error: (err: Error) => {
+        this.isReopening = false;
+        this.errorMessage = err.message;
+        this.cdr.detectChanges();
+      },
+    });
+  }
+
   submit() {
     if (!this.isFormValid) {
       this.showValidationErrors = true;
       return;
     }
-    if (this.isSubmitting || this.isDeleting) return;
+    if (this.isBusy) return;
 
     this.isSubmitting = true;
     this.errorMessage = '';
@@ -213,6 +248,9 @@ export class EditTaskComponent implements OnInit {
     this.taskService.updateTask(this.task.id, payload).subscribe({
       next: () => {
         this.isSubmitting = false;
+        this.toastr.success('Task details have been updated.', '✅ Changes Saved', {
+          timeOut: 3500,
+        });
         this.taskUpdated.emit();
         this.close();
       },

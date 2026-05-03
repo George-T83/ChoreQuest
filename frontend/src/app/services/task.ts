@@ -57,6 +57,16 @@ export class TaskService {
     );
   }
 
+  reopenTask(taskId: string): Observable<Task> {
+    return this.http.patch<Task>(`${API_BASE}/${taskId}/update/`, { reopen: true }).pipe(
+      tap((updatedTask) => {
+        const currentTasks = this._tasks$.getValue();
+        this._tasks$.next(currentTasks.map((t) => (t.id === taskId ? updatedTask : t)));
+      }),
+      catchError(this.handleError),
+    );
+  }
+
   deleteTask(taskId: string): Observable<void> {
     return this.http.delete<void>(`${API_BASE}/${taskId}/delete/`).pipe(
       tap(() => {

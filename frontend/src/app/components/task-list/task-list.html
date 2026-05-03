@@ -86,7 +86,7 @@
                   <span class="tag tag--danger">Late! −{{ task.points_deducted }} pts</span>
                 }
                 @if (task.points > 0) {
-                  <span class="tag tag--points-earned">+{{ task.points }} pts earned</span>
+                  <span class="tag tag--points-earned">+{{ task.points - (task.points_deducted ?? 0) }} pts earned</span>
                 }
               </div>
             }
