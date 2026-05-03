@@ -24,12 +24,19 @@ export class TaskListComponent {
   @Output() openCreateTask = new EventEmitter<void>();
   @Output() editTask = new EventEmitter<Task>();
 
+<<<<<<< HEAD
   // ── Toast state (SCRUM-62) ────────────────────────────────────────────────
   toastMessage: string = '';
   toastVisible: boolean = false;
   private toastTimer: any = null;
 
   constructor(private taskService: TaskService) { }
+=======
+  constructor(
+    private taskService: TaskService,
+    private toastr: ToastrService,
+  ) {}
+>>>>>>> f8e5588 (feat: add ngx-toastr for notifications and enhance dashboard UI)
 
   isAssignedToMe(assignedTo: string): boolean {
     return assignedTo === this.currentUserUid;
@@ -107,23 +114,49 @@ export class TaskListComponent {
 
   // ── SCRUM-62: Complete with late penalty toast ────────────────────────────
   onComplete(taskId: string): void {
+<<<<<<< HEAD
     const task = this.tasks.find(t => t.id === taskId);
+=======
+    const task = this.tasks.find((t) => t.id === taskId);
+>>>>>>> f8e5588 (feat: add ngx-toastr for notifications and enhance dashboard UI)
     const currentDueDate = task?.due_date ?? '';
 
     this.taskService.completeTask(taskId, currentDueDate).subscribe({
       next: (response) => {
         if (response.was_late) {
+<<<<<<< HEAD
           this.showToast(
             `Task completed late! −${response.points_deducted} point penalty applied. You earned ${response.points_awarded} pts.`
           );
         } else if (response.points_awarded > 0) {
           this.showToast(`Great job! +${response.points_awarded} pts earned.`);
+=======
+          this.toastr.warning(
+            `${response.points_deducted} point penalty applied. You still earned ${response.points_awarded} pts!`,
+            '⏰ Late Completion',
+            { enableHtml: true, timeOut: 5000 },
+          );
+        } else if (response.points_awarded > 0) {
+          this.toastr.success(
+            `You earned ${response.points_awarded} pts. Great work!`,
+            '✓ Task Completed',
+            { enableHtml: true },
+          );
+        } else {
+          this.toastr.success('Task completed successfully!', '✓ Task Completed', {
+            enableHtml: true,
+          });
+>>>>>>> f8e5588 (feat: add ngx-toastr for notifications and enhance dashboard UI)
         }
         // Removed: this.completeTask.emit(taskId)
         // TaskService already updates tasks$ stream directly
       },
       error: (err: Error) => {
+<<<<<<< HEAD
         this.showToast(err.message);
+=======
+        this.toastr.error(err.message, '✕ Error', { enableHtml: true, timeOut: 5000 });
+>>>>>>> f8e5588 (feat: add ngx-toastr for notifications and enhance dashboard UI)
       },
     });
   }

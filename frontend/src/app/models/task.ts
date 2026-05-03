@@ -11,6 +11,10 @@ export interface Task {
   points: number;
   is_recurring: boolean;
   recurrence_interval_days: number | null;
+<<<<<<< HEAD
+=======
+  completed_at?: string | null;
+>>>>>>> f8e5588 (feat: add ngx-toastr for notifications and enhance dashboard UI)
   was_late?: boolean;
   points_deducted?: number;
 }
