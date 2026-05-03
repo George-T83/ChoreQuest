@@ -26,7 +26,7 @@
       @for (task of tasks; track task.id) {
         <div
           class="task-card card task--{{
-            isCompleted(task)
+            task.status === 'completed'
               ? 'done'
               : getUrgency(task.due_date, task.status) === 'OVERDUE'
                 ? 'overdue'
@@ -37,10 +37,10 @@
             <input
               type="checkbox"
               (change)="onComplete(task.id)"
-              [checked]="isCompleted(task) || isCooldown(task)"
+              [checked]="task.status === 'completed' || isCooldown(task)"
               [disabled]="
                 !currentUserUid ||
-                isCompleted(task) ||
+                task.status === 'completed' ||
                 !isAssignedToMe(task.assigned_to) ||
                 processingTaskIds.has(task.id) ||
                 isCooldown(task) ||
@@ -50,13 +50,13 @@
           </div>
 
           <div class="task-details">
-            <h4 [class.strike]="isCompleted(task) || isCooldown(task)">
+            <h4 [class.strike]="task.status === 'completed' || isCooldown(task)">
               {{ task.title }}
             </h4>
 
             <p class="task-meta">{{ formatDueDate(getDisplayDueDate(task)) }}</p>
 
-            @if (!isCompleted(task)) {
+            @if (task.status !== 'completed') {
               <div class="task-tags">
                 @if (!isCooldown(task)) {
                   @if (getUrgency(getDisplayDueDate(task), task.status) === 'Due today') {
@@ -66,6 +66,7 @@
                     <span class="tag tag--danger">OVERDUE</span>
                   }
                 }
+
                 <span class="tag tag--neutral">{{ task.difficulty }}</span>
                 @if (task.points > 0) {
                   <span class="tag tag--points">+{{ task.points }} pts</span>
@@ -79,15 +80,6 @@
                         : 'Every ' + task.recurrence_interval_days + ' days'
                     }}
                   </span>
-                }
-              </div>
-            } @else {
-              <div class="task-tags">
-                @if (task.was_late) {
-                  <span class="tag tag--danger">Late! −{{ task.points_deducted }} pts</span>
-                }
-                @if (task.points > 0) {
-                  <span class="tag tag--points-earned">+{{ task.points }} pts earned</span>
                 }
               </div>
             }
@@ -116,7 +108,7 @@
               </button>
             }
 
-            @if (isCompleted(task)) {
+            @if (task.status === 'completed') {
               <button class="btn-complete" disabled>Done</button>
             } @else if (isAssignedToMe(task.assigned_to)) {
               <button
@@ -130,9 +122,11 @@
                 {{
                   processingTaskIds.has(task.id)
                     ? 'Completing...'
-                    : isCooldown(task) || isFutureLocked(task)
-                      ? 'Not Due Yet'
-                      : 'Complete'
+                    : isCooldown(task)
+                      ? 'Done'
+                      : isFutureLocked(task)
+                        ? 'Not Due Yet'
+                        : 'Complete'
                 }}
               </button>
             } @else {
