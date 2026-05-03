@@ -43,9 +43,26 @@
   font-weight: bold;
 }
 
+.header-center {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: center;
+}
+
 .badge--success {
   background: var(--emerald-400);
   color: #064e3b;
+  padding: 0.5rem 1rem;
+  border-radius: 1rem;
+  font-size: 0.75rem;
+  font-weight: bold;
+}
+
+.badge--warning {
+  background: #ef4444;
+  color: #fff;
   padding: 0.5rem 1rem;
   border-radius: 1rem;
   font-size: 0.75rem;
@@ -122,8 +139,6 @@
   .header-center {
     order: 3;
     width: 100%;
-    display: flex;
-    justify-content: center;
   }
   .header-right {
     gap: 0.4rem;
