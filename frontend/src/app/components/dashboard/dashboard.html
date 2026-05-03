@@ -13,6 +13,11 @@
             assigned to you
           </span>
         }
+        @if (getMyOverdueTaskCount(tasks) > 0) {
+          <span class="badge badge--warning">
+            ⚠️ {{ getMyOverdueTaskCount(tasks) }} overdue
+          </span>
+        }
       }
     </div>
     <div class="header-right">
@@ -100,7 +105,8 @@
               [(ngModel)]="filterState.status"
               (change)="onFilterChange()"
             >
-              <option value="All">Any</option>
+              <option value="Active">Active</option>
+              <option value="All">All</option>
               <option value="Pending">Pending (On Time)</option>
               <option value="Overdue">Overdue ⚠️</option>
               <option value="Completed">Completed</option>
@@ -215,8 +221,6 @@
           [currentUserUid]="currentUser?.uid ?? ''"
           [isAdmin]="isAdmin(household)"
           [tasksLoadError]="tasksLoadError"
-          [processingTaskIds]="processingTaskIds"
-          (completeTask)="completeTask($event)"
           (openCreateTask)="openCreateTask()"
           (editTask)="openEditTask($event)"
         />

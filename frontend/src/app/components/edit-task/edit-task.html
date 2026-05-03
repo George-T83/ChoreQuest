@@ -8,6 +8,9 @@
   >
     <div class="modal-header">
       <h3 id="edit-task-title">Edit Task</h3>
+      @if (task.status === 'completed') {
+        <span class="status-badge status-badge--completed">Completed</span>
+      }
     </div>
 
     <div class="modal-body">
@@ -153,24 +156,21 @@
     </div>
 
     <div class="modal-footer">
-      <button
-        class="btn btn--danger"
-        (click)="deleteTask()"
-        [disabled]="isSubmitting || isDeleting"
-      >
-        {{ isDeleting ? 'Deleting...' : 'Delete Task' }}
-      </button>
+      <div class="footer-left">
+        <button class="btn btn--danger" (click)="deleteTask()" [disabled]="isBusy">
+          {{ isDeleting ? 'Deleting...' : 'Delete Task' }}
+        </button>
+        @if (task.status === 'completed') {
+          <button class="btn btn--reopen" (click)="onReopen()" [disabled]="isBusy">
+            {{ isReopening ? 'Reopening...' : '↩ Reopen Task' }}
+          </button>
+        }
+      </div>
 
       <div class="footer-actions">
-        <button class="btn btn--outline" (click)="close()" [disabled]="isSubmitting || isDeleting">
-          Cancel
-        </button>
-        <button class="btn btn--primary" (click)="submit()" [disabled]="isSubmitting || isDeleting">
-          @if (isSubmitting) {
-            Saving...
-          } @else {
-            Save Changes
-          }
+        <button class="btn btn--outline" (click)="close()" [disabled]="isBusy">Cancel</button>
+        <button class="btn btn--primary" (click)="submit()" [disabled]="isBusy">
+          {{ isSubmitting ? 'Saving...' : 'Save Changes' }}
         </button>
       </div>
     </div>
