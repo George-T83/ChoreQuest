@@ -1,3 +1,117 @@
+@import 'ngx-toastr/toastr';
+
+/* ────────────────────────────────────────────────────────────
+   CUSTOM TOAST STYLING
+──────────────────────────────────────────────────────────────── */
+.toast-container {
+  font-family: inherit;
+  padding: 1rem;
+  border-radius: 12px;
+}
+
+.ngx-toastr {
+  border-radius: 12px;
+  padding: 16px 20px;
+  box-shadow:
+    0 12px 32px rgba(0, 0, 0, 0.15),
+    0 2px 8px rgba(0, 0, 0, 0.1);
+  font-weight: 500;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  border: none;
+  backdrop-filter: blur(8px);
+  animation: toastSlideIn 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes toastSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.ngx-toastr.toast-success {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: #ffffff;
+}
+
+.ngx-toastr.toast-success .ngx-toastr-title {
+  color: rgba(255, 255, 255, 0.95);
+  font-weight: 600;
+}
+
+.ngx-toastr.toast-success .toast-close-button {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.ngx-toastr.toast-success .toast-close-button:hover {
+  color: #ffffff;
+}
+
+.ngx-toastr.toast-warning {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  color: #ffffff;
+}
+
+.ngx-toastr.toast-warning .ngx-toastr-title {
+  color: rgba(255, 255, 255, 0.95);
+  font-weight: 600;
+}
+
+.ngx-toastr.toast-warning .toast-close-button {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.ngx-toastr.toast-warning .toast-close-button:hover {
+  color: #ffffff;
+}
+
+.ngx-toastr.toast-error {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  color: #ffffff;
+}
+
+.ngx-toastr.toast-error .ngx-toastr-title {
+  color: rgba(255, 255, 255, 0.95);
+  font-weight: 600;
+}
+
+.ngx-toastr.toast-error .toast-close-button {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.ngx-toastr.toast-error .toast-close-button:hover {
+  color: #ffffff;
+}
+
+.ngx-toastr.toast-info {
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  color: #ffffff;
+}
+
+.ngx-toastr.toast-info .ngx-toastr-title {
+  color: rgba(255, 255, 255, 0.95);
+  font-weight: 600;
+}
+
+.ngx-toastr.toast-info .toast-close-button {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.ngx-toastr.toast-info .toast-close-button:hover {
+  color: #ffffff;
+}
+
+.ngx-toastr .toast-progress {
+  height: 3px;
+  background: rgba(255, 255, 255, 0.4);
+  border-radius: 999px;
+}
+
 :root {
   /* Core */
   --white: #ffffff;
