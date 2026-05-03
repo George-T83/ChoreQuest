@@ -5,6 +5,7 @@ from django.conf import settings
 from firebase_admin import firestore
 import uuid
 from datetime import datetime, timezone, timedelta
+import math
 from .household_utils import _get_user_household_doc
 
 
@@ -12,10 +13,9 @@ def _serialize_task(task):
     """
     Convert Firestore datetime values into JSON-serializable ISO strings.
     """
-    if hasattr(task.get('due_date'), 'isoformat'):
-        task['due_date'] = task['due_date'].isoformat()
-    if hasattr(task.get('created_at'), 'isoformat'):
-        task['created_at'] = task['created_at'].isoformat()
+    for field in ('due_date', 'created_at', 'completed_at'):
+        if hasattr(task.get(field), 'isoformat'):
+            task[field] = task[field].isoformat()
     return task
 
 
@@ -144,6 +144,10 @@ def get_household_tasks(request):
             task['is_recurring'] = False
         if 'recurrence_interval_days' not in task:
             task['recurrence_interval_days'] = None
+        if 'was_late' not in task:
+            task['was_late'] = False
+        if 'points_deducted' not in task:
+            task['points_deducted'] = 0
         tasks.append(_serialize_task(task))
 
     return Response(tasks, status=200)
@@ -235,24 +239,49 @@ def complete_task(request, task_id):
         interval = task_tx.get('recurrence_interval_days', None)
         updated_task_data = task_tx.copy()
 
+        # Determine lateness and penalty (12-hour grace, 20% penalty)
+        was_late = False
+        points_deducted = 0
+        awarded_points = points_to_award
+
+        if db_due_date:
+            try:
+                if isinstance(db_due_date, str):
+                    due_dt = datetime.fromisoformat(db_due_date.replace('Z', '+00:00'))
+                else:
+                    due_dt = db_due_date
+
+                if due_dt.tzinfo is None:
+                    due_dt = due_dt.replace(tzinfo=timezone.utc)
+
+                now_check = datetime.now(timezone.utc)
+                grace_end = due_dt + timedelta(hours=12)
+                if now_check > grace_end:
+                    was_late = True
+                    points_deducted = math.floor(points_to_award * 0.20)
+                    awarded_points = max(0, points_to_award - points_deducted)
+            except Exception:
+                # On any parse error, treat as not late and award full points
+                was_late = False
+                points_deducted = 0
+                awarded_points = points_to_award
+
         if is_recurring and interval and int(interval) >= 1:
-            if hasattr(db_due_date, 'isoformat'):
-                base_date = db_due_date
-            elif isinstance(db_due_date, str):
-                try:
-                    base_date = datetime.fromisoformat(db_due_date.replace('Z', '+00:00'))
-                except ValueError:
-                    base_date = datetime.now(timezone.utc)
-            else:
+            if was_late:
                 base_date = datetime.now(timezone.utc)
+            else:
+                if hasattr(db_due_date, 'isoformat'):
+                    base_date = db_due_date
+                elif isinstance(db_due_date, str):
+                    try:
+                        base_date = datetime.fromisoformat(db_due_date.replace('Z', '+00:00'))
+                    except ValueError:
+                        base_date = datetime.now(timezone.utc)
+                else:
+                    base_date = datetime.now(timezone.utc)
 
-            # Ensure timezone awareness for math
-            if base_date.tzinfo is None:
-                base_date = base_date.replace(tzinfo=timezone.utc)
-
-            now_utc = datetime.now(timezone.utc)
-            if base_date < now_utc:
-                base_date = now_utc
+                if base_date.tzinfo is None:
+                    base_date = base_date.replace(tzinfo=timezone.utc)
 
             new_due_date = base_date + timedelta(days=int(interval))
 
@@ -261,29 +290,33 @@ def complete_task(request, task_id):
                 'due_date': new_due_date,
                 'completed_at': firestore.SERVER_TIMESTAMP,
                 'points_awarded': True,
+                'was_late': was_late,
+                'points_deducted': points_deducted,
             }
         else:
             updates = {
                 'status': 'completed',
                 'completed_at': firestore.SERVER_TIMESTAMP,
                 'points_awarded': True,
+                'was_late': was_late,
+                'points_deducted': points_deducted,
             }
 
         transaction.update(task_ref, updates)
         updated_task_data.update(updates)
 
-        if points_to_award > 0:
+        if awarded_points > 0:
             user_ref = db.collection('users').document(uid)
             transaction.update(user_ref, {
-                'points': firestore.Increment(points_to_award)
+                'points': firestore.Increment(awarded_points)
             })
 
-        return points_to_award, is_recurring, updated_task_data
+        return awarded_points, is_recurring, updated_task_data, points_deducted, was_late
 
     try:
         transaction = db.transaction()
         
-        points_awarded, is_recurring, updated_task = update_task_and_award_points(transaction)
+        awarded_points, is_recurring, updated_task, points_deducted, was_late = update_task_and_award_points(transaction)
         
         if updated_task.get('completed_at') == firestore.SERVER_TIMESTAMP:
             updated_task['completed_at'] = datetime.now(timezone.utc)
@@ -292,7 +325,9 @@ def complete_task(request, task_id):
 
         return Response({
             'detail': 'Task completed.' if not is_recurring else 'Task completed and reset for next cycle.',
-            'points_awarded': points_awarded,
+            'points_awarded': awarded_points,
+            'was_late': was_late,
+            'points_deducted': points_deducted,
             'is_recurring': is_recurring,
             'task': serialized_task
         }, status=200)
@@ -390,6 +425,13 @@ def update_task(request, task_id):
         'recurrence_interval_days': recurrence_interval_days,
         'updated_at': firestore.SERVER_TIMESTAMP,
     }
+
+    if bool(request.data.get('reopen', False)) and current_task_data.get('status') == 'completed':
+        updates['status'] = 'pending'
+        updates['completed_at'] = None
+        updates['was_late'] = False
+        updates['points_deducted'] = 0
+        updates['points_awarded'] = False
 
     write_result = task_ref.update(updates)
 

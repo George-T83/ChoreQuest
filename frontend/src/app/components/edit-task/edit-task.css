@@ -50,7 +50,7 @@
   padding: 1.25rem;
   display: flex;
   flex-direction: column;
-  gap: 0.875rem;
+  gap: 1.25rem;
   max-height: 75vh;
   overflow-y: auto;
 }
@@ -356,14 +356,37 @@
 }
 
 /* =========================================
+   COMPLETED BADGE
+========================================= */
+.status-badge {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+}
+
+.status-badge--completed {
+  background: var(--emerald-100);
+  color: var(--emerald-600);
+}
+
+/* =========================================
    FOOTER & BUTTONS
 ========================================= */
 .modal-footer {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-end;
   padding: 1rem 1.25rem;
   border-top: 1px solid var(--gray-200);
+  gap: 0.75rem;
+}
+
+.footer-left {
+  display: flex;
+  gap: 0.5rem;
 }
 
 .footer-actions {
@@ -420,4 +443,14 @@
 
 .btn--danger:hover:not(:disabled) {
   background: #fef2f2;
+}
+
+.btn--reopen {
+  background: transparent;
+  color: var(--indigo-600);
+  border: 1px solid var(--indigo-200);
+}
+
+.btn--reopen:hover:not(:disabled) {
+  background: var(--indigo-100);
 }
