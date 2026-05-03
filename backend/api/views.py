@@ -284,11 +284,11 @@ def reset_leaderboard(request):
     winner = standings[0]
 
     # ── Save snapshot to history subcollection ────────────────────────────────
-    import uuid as _uuid
-    from datetime import datetime, timezone as _tz
-    history_id   = str(_uuid.uuid4())
+    # ── Save snapshot and zero points via batch ───────────────────────────────
+    batch = db.batch()
+    history_id   = str(uuid.uuid4())
     history_ref  = household_ref.collection('history').document(history_id)
-    history_ref.set({
+    batch.set(history_ref, {
         'cycle_end_date': firestore.SERVER_TIMESTAMP,
         'winner_uid':     winner['uid'],
         'winner_name':    winner['name'],
@@ -296,8 +296,6 @@ def reset_leaderboard(request):
         'standings':      standings,
     })
 
-    # ── Zero all member points via batch ──────────────────────────────────────
-    batch = db.batch()
     for doc in user_docs:
         if doc.exists:
             batch.update(db.collection('users').document(doc.id), {'points': 0})
