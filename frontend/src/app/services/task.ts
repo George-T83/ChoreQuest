@@ -2,7 +2,7 @@ import { inject, Injectable } from '@angular/core';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Observable, BehaviorSubject, throwError } from 'rxjs';
 import { tap, catchError } from 'rxjs/operators';
-import { Task, CreateTaskPayload } from '../models/task';
+import { Task, CreateTaskPayload, CompleteTaskResponse } from '../models/task';
 
 const API_BASE = '/api/tasks';
 
@@ -29,17 +29,9 @@ export class TaskService {
     );
   }
 
-  completeTask(
-    taskId: string,
-    currentDueDate: string,
-  ): Observable<{ detail: string; points_awarded: number; is_recurring: boolean; task: Task }> {
+  completeTask(taskId: string, currentDueDate: string): Observable<CompleteTaskResponse> {
     return this.http
-      .post<{
-        detail: string;
-        points_awarded: number;
-        is_recurring: boolean;
-        task: Task;
-      }>(`${API_BASE}/${taskId}/complete/`, { due_date: currentDueDate })
+      .post<CompleteTaskResponse>(`${API_BASE}/${taskId}/complete/`, { due_date: currentDueDate })
       .pipe(
         tap((response) => {
           const currentTasks = this._tasks$.getValue();

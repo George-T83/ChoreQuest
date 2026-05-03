@@ -5,14 +5,21 @@
     </div>
     <div class="header-center">
       @if (allTasks$ | async; as tasks) {
-        @if (getMyPendingTaskCount(tasks) > 0) {
-          <span class="badge badge--success">
-            {{ getMyPendingTaskCount(tasks) }} task{{
-              getMyPendingTaskCount(tasks) === 1 ? '' : 's'
-            }}
-            assigned to you
-          </span>
-        }
+        <div class="header-badges">
+          @if (getMyPendingTaskCount(tasks) > 0) {
+            <span class="badge badge--success">
+              {{ getMyPendingTaskCount(tasks) }} task{{
+                getMyPendingTaskCount(tasks) === 1 ? '' : 's'
+              }}
+              assigned to you
+            </span>
+          }
+          @if (getMyLateTaskCount(tasks) > 0) {
+            <span class="badge badge--alert" title="Tasks that are overdue">
+              🔔 {{ getMyLateTaskCount(tasks) }} late
+            </span>
+          }
+        </div>
       }
     </div>
     <div class="header-right">
@@ -101,7 +108,7 @@
               (change)="onFilterChange()"
             >
               <option value="All">Any</option>
-              <option value="Pending">Pending (On Time)</option>
+              <option value="Incomplete">Incomplete</option>
               <option value="Overdue">Overdue ⚠️</option>
               <option value="Completed">Completed</option>
             </select>
@@ -237,10 +244,6 @@
     <div class="nav-item active">
       <span class="icon">⊞</span>
       <span>Dashboard</span>
-    </div>
-    <div class="nav-item">
-      <span class="icon">☐</span>
-      <span>Tasks</span>
     </div>
     <div class="nav-item">
       <span class="icon">↗</span>

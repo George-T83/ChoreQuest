@@ -1,7 +1,9 @@
 import { Component, Input, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { ToastrService } from 'ngx-toastr';
 import { Task } from '../../models/task';
 import { Household } from '../../models/household';
+import { TaskService } from '../../services/task';
 
 @Component({
   selector: 'app-task-list',
@@ -22,26 +24,30 @@ export class TaskListComponent {
   @Output() openCreateTask = new EventEmitter<void>();
   @Output() editTask = new EventEmitter<Task>();
 
+  constructor(
+    private taskService: TaskService,
+    private toastr: ToastrService,
+  ) {}
+
   isAssignedToMe(assignedTo: string): boolean {
     return assignedTo === this.currentUserUid;
   }
 
+  isCompleted(task: any): boolean {
+    return task.status === 'completed' || !!task.completed_at;
+  }
+
   isTooEarly(dueDateStr: string | null, intervalDays: number | null | undefined): boolean {
     if (!dueDateStr || !intervalDays) return false;
-
     const currentDueDate = new Date(dueDateStr);
     const today = new Date();
-
     today.setHours(0, 0, 0, 0);
     currentDueDate.setHours(0, 0, 0, 0);
-
     if (intervalDays === 1) {
       return currentDueDate.getTime() > today.getTime();
     }
-
     const cycleStartDate = new Date(currentDueDate);
     cycleStartDate.setDate(currentDueDate.getDate() - intervalDays);
-
     return today.getTime() < cycleStartDate.getTime();
   }
 
@@ -61,15 +67,12 @@ export class TaskListComponent {
 
   formatDueDate(dueDateStr: string | null): string {
     if (!dueDateStr) return 'No due date';
-
     const due = new Date(dueDateStr);
     if (isNaN(due.getTime())) return 'Invalid date';
-
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     due.setHours(0, 0, 0, 0);
     const diff = (due.getTime() - today.getTime()) / (1000 * 60 * 60 * 24);
-
     if (diff < 0)
       return `Was due: ${due.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
     if (diff === 0) return 'Today';
@@ -79,34 +82,58 @@ export class TaskListComponent {
 
   getDisplayDueDate(task: any): string | null {
     if (!task.due_date) return null;
-
     if (this.isCooldown(task) && task.recurrence_interval_days) {
       const displayDate = new Date(task.due_date);
       displayDate.setDate(displayDate.getDate() - task.recurrence_interval_days);
       return displayDate.toISOString();
     }
-
     return task.due_date;
   }
 
   getUrgency(dueDateStr: string | null, status: string): string {
     if (status === 'completed' || !dueDateStr) return '';
-
     const due = new Date(dueDateStr);
     if (isNaN(due.getTime())) return '';
-
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     due.setHours(0, 0, 0, 0);
     const diff = (due.getTime() - today.getTime()) / (1000 * 60 * 60 * 24);
-
     if (diff < 0) return 'OVERDUE';
     if (diff === 0) return 'Due today';
     return '';
   }
 
+  // ── SCRUM-62: Complete with late penalty toast ────────────────────────────
   onComplete(taskId: string): void {
-    this.completeTask.emit(taskId);
+    const task = this.tasks.find((t) => t.id === taskId);
+    const currentDueDate = task?.due_date ?? '';
+
+    this.taskService.completeTask(taskId, currentDueDate).subscribe({
+      next: (response) => {
+        if (response.was_late) {
+          this.toastr.warning(
+            `${response.points_deducted} point penalty applied. You still earned ${response.points_awarded} pts!`,
+            '⏰ Late Completion',
+            { enableHtml: true, timeOut: 5000 },
+          );
+        } else if (response.points_awarded > 0) {
+          this.toastr.success(
+            `You earned ${response.points_awarded} pts. Great work!`,
+            '✓ Task Completed',
+            { enableHtml: true },
+          );
+        } else {
+          this.toastr.success('Task completed successfully!', '✓ Task Completed', {
+            enableHtml: true,
+          });
+        }
+        // Removed: this.completeTask.emit(taskId)
+        // TaskService already updates tasks$ stream directly
+      },
+      error: (err: Error) => {
+        this.toastr.error(err.message, '✕ Error', { enableHtml: true, timeOut: 5000 });
+      },
+    });
   }
 
   onOpenCreateTask(): void {
