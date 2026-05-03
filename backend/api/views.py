@@ -302,7 +302,7 @@ def reset_leaderboard(request):
     try:
         batch.commit()
     except Exception as e:
-        return Response({'detail': f'Batch commit failed: {str(e)}'}, status=500)
+        return Response({'detail': 'Failed to reset leaderboard due to a database error.'}, status=500)
 
     return Response({
         'detail':        'Leaderboard reset successfully.',
