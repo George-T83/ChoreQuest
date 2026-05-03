@@ -4,6 +4,7 @@ from rest_framework.response import Response
 from django.conf import settings
 from firebase_admin import firestore
 import uuid
+import math
 from datetime import datetime, timezone, timedelta
 from .household_utils import _get_user_household_doc
 

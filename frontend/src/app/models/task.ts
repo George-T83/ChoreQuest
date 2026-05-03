@@ -24,3 +24,12 @@ export interface CreateTaskPayload {
   is_recurring: boolean;
   recurrence_interval_days: number | null;
 }
+
+export interface CompleteTaskResponse {
+  detail: string;
+  points_awarded: number;
+  was_late: boolean;
+  points_deducted: number;
+  is_recurring: boolean;
+  task: Task;
+}

@@ -1,5 +1,6 @@
 import { Component, Input, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { ToastrService } from 'ngx-toastr';
 import { Task } from '../../models/task';
 import { Household } from '../../models/household';
 import { TaskService } from '../../services/task';
@@ -32,6 +33,10 @@ export class TaskListComponent {
 
   isAssignedToMe(assignedTo: string): boolean {
     return assignedTo === this.currentUserUid;
+  }
+
+  isCompleted(task: any): boolean {
+    return task.status === 'completed' || !!task.completed_at;
   }
 
   isTooEarly(dueDateStr: string | null, intervalDays: number | null | undefined): boolean {
