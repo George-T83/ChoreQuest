@@ -44,7 +44,7 @@
                [checked]="task.status === 'completed' || isCooldown(task)"
                [disabled]="
                 !currentUserUid ||
-                task.status === 'completed' ||
+                isCompleted(task) ||
                 !isAssignedToMe(task.assigned_to) ||
                 processingTaskIds.has(task.id) ||
                 isCooldown(task) ||
