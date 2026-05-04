@@ -240,7 +240,7 @@ def leave_household(request):
 @permission_classes([IsAuthenticated])
 def reset_leaderboard(request):
     """
-    Admin-only. Saves a cycle snapshot to history, then zeroes all member points.
+    Admin-only. Saves a cycle snapshot to history, then zeroes all member points and tasks completed.
     Aborts if no points were earned this cycle.
     """
     uid = request.user.username
@@ -283,11 +283,11 @@ def reset_leaderboard(request):
     standings.sort(key=lambda s: s['points'], reverse=True)
     winner = standings[0]
 
-    # ── Save snapshot to history subcollection ────────────────────────────────
-    # ── Save snapshot and zero points via batch ───────────────────────────────
+    # ── Save snapshot and zero points/tasks via batch ───────────────────────────────
     batch = db.batch()
     history_id   = str(uuid.uuid4())
     history_ref  = household_ref.collection('history').document(history_id)
+    
     batch.set(history_ref, {
         'cycle_end_date': firestore.SERVER_TIMESTAMP,
         'winner_uid':     winner['uid'],
@@ -298,7 +298,11 @@ def reset_leaderboard(request):
 
     for doc in user_docs:
         if doc.exists:
-            batch.update(db.collection('users').document(doc.id), {'points': 0})
+            batch.update(db.collection('users').document(doc.id), {
+                'points': 0,
+                'total_tasks_completed': 0
+            })
+            
     try:
         batch.commit()
     except Exception as e:

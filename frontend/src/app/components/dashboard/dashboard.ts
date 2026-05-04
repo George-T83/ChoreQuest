@@ -7,14 +7,14 @@ import {
   HostListener,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { ToastrService } from 'ngx-toastr';
 import { FormsModule } from '@angular/forms';
-import { Router, RouterModule } from '@angular/router';
+import { Router, RouterLink, RouterModule } from '@angular/router';
 import { Auth } from '@angular/fire/auth';
 import { Firestore, doc, onSnapshot } from '@angular/fire/firestore';
 import { HttpClient } from '@angular/common/http';
 import { BehaviorSubject, combineLatest } from 'rxjs';
 import { finalize, map, take } from 'rxjs/operators';
-import { ToastrService } from 'ngx-toastr';
 import { HouseholdService } from '../../services/household';
 import { TaskService } from '../../services/task';
 import { CreateTaskComponent } from '../create-task/create-task';
@@ -29,8 +29,9 @@ import { Task } from '../../models/task';
   standalone: true,
   imports: [
     CommonModule,
-    RouterModule,
     FormsModule,
+    RouterLink,
+    RouterModule,
     CreateTaskComponent,
     TaskListComponent,
     EditTaskComponent,
@@ -41,18 +42,18 @@ import { Task } from '../../models/task';
 })
 export class DashboardComponent implements OnInit, OnDestroy {
   private auth = inject(Auth);
-  private firestore = inject(Firestore);
   private router = inject(Router);
   private householdService = inject(HouseholdService);
   private taskService = inject(TaskService);
   private cdr = inject(ChangeDetectorRef);
   private http = inject(HttpClient);
+  private firestore = inject(Firestore);
   private toastr = inject(ToastrService);
 
   household$ = this.householdService.household$;
 
   filterState = {
-    status: 'All',
+    status: 'Active',
     assignee: 'All',
     difficulty: 'All',
     pointsMin: null as number | null,
@@ -80,8 +81,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
             isOverdue = due.getTime() < today.getTime();
           }
 
+          if (filters.status === 'Active' && isCompleted) return false;
           if (filters.status === 'Completed' && !isCompleted) return false;
           if (filters.status === 'Overdue' && !isOverdue) return false;
+          // "Pending" means incomplete and NOT overdue yet
           if (filters.status === 'Pending' && (isCompleted || isOverdue)) return false;
         }
 
@@ -127,15 +130,16 @@ export class DashboardComponent implements OnInit, OnDestroy {
     }),
   );
 
-  isProfileMenuOpen = false;
   isInitialLoading = true;
   isCreateTaskOpen = false;
   isEditTaskOpen = false;
   isHistoryModalOpen = false;
   isResettingLeaderboard = false;
+  isProfileMenuOpen = false;
   tasksLoadError = '';
 
   taskToEdit: Task | null = null;
+  currentHouseholdId: string = '';
 
   currentUser: any = null;
   currentUserPoints: number = 0;
@@ -172,10 +176,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
     return household.admin_id === this.currentUser?.uid;
   }
 
-  isAssignedToMe(assignedTo: string): boolean {
-    return assignedTo === this.currentUser?.uid;
-  }
-
   getMembers(household: Household): HouseholdMember[] {
     return household.members as HouseholdMember[];
   }
@@ -183,26 +183,52 @@ export class DashboardComponent implements OnInit, OnDestroy {
   copyInviteCode(code: string) {
     navigator.clipboard
       .writeText(code)
-      .then(() => alert(`Invite code ${code} copied to clipboard!`))
-      .catch(err => console.error('Failed to copy:', err));
+      .then(() => {
+        this.toastr.success(`Invite code ${code} copied to clipboard!`, '📋 Copied');
+      })
+      .catch((err) => {
+        console.error('Failed to copy text: ', err);
+        this.toastr.error('Failed to copy code to clipboard.', 'Error');
+      });
   }
 
   getMemberName(uid: string, household: Household): string {
-    const member = household.members.find(m => m.id === uid);
+    const member = household.members.find((m) => m.id === uid);
     return member ? member.display_name : 'Unknown';
   }
 
   getMyPendingTaskCount(tasks: any[]): number {
     if (!this.currentUser) return 0;
-    return tasks.filter(
-      t => t.assigned_to === this.currentUser.uid && t.status !== 'completed'
-    ).length;
+    return tasks.filter((t) => t.assigned_to === this.currentUser.uid && t.status !== 'completed')
+      .length;
+  }
+
+  getMyOverdueTaskCount(tasks: any[]): number {
+    if (!this.currentUser) return 0;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    return tasks.filter((task) => {
+      if (task.assigned_to !== this.currentUser.uid) return false;
+      if (task.status === 'completed') return false;
+      if (!task.due_date) return false;
+      const due = new Date(task.due_date);
+      due.setHours(0, 0, 0, 0);
+      return due.getTime() < today.getTime();
+    }).length;
   }
 
   // ── Create task ────────────────────────────────────────────────────────────
-  openCreateTask() { this.isCreateTaskOpen = true; }
-  closeCreateTask() { this.isCreateTaskOpen = false; }
-  onTaskCreated() { this.reloadHouseholdTasks(); }
+  openCreateTask() {
+    this.isCreateTaskOpen = true;
+  }
+  closeCreateTask() {
+    this.isCreateTaskOpen = false;
+  }
+  onTaskCreated() {
+    this.reloadHouseholdTasks();
+  }
 
   // ── Edit task ──────────────────────────────────────────────────────────────
   openEditTask(task: Task) {
@@ -215,11 +241,15 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.taskToEdit = null;
   }
 
-  currentHouseholdId: string = '';
+  onTaskUpdated() {
+    this.reloadHouseholdTasks();
+    this.closeEditTask();
+  }
 
+  // ── History Modal ──────────────────────────────────────────────────────────
   openHistoryModal() {
     console.log('openHistoryModal called');
-    this.householdService.household$.pipe(take(1)).subscribe(household => {
+    this.householdService.household$.pipe(take(1)).subscribe((household) => {
       if (household) {
         this.currentHouseholdId = household.id;
         this.isHistoryModalOpen = true;
@@ -227,7 +257,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
       }
     });
   }
-  closeHistoryModal() { this.isHistoryModalOpen = false; }
+  closeHistoryModal() {
+    this.isHistoryModalOpen = false;
+  }
 
   // ── Reset leaderboard ──────────────────────────────────────────────────────
   resetLeaderboard(): void {
@@ -247,10 +279,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
       },
       error: (err) => {
         this.isResettingLeaderboard = false;
-        this.toastr.error(
-          err.error?.detail ?? 'Failed to reset leaderboard.',
-          'Error',
-        );
+        this.toastr.error(err.error?.detail ?? 'Failed to reset leaderboard.', 'Error');
         this.cdr.detectChanges();
       },
     });
@@ -261,7 +290,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.processingTaskIds.add(taskId);
 
     this.allTasks$.pipe(take(1)).subscribe((tasks) => {
-      const taskToComplete = tasks.find(t => t.id === taskId);
+      const taskToComplete = tasks.find((t) => t.id === taskId);
       const currentDueDate = taskToComplete?.due_date || '';
 
       this.taskService
@@ -273,8 +302,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
           }),
         )
         .subscribe({
-          next: () => { },
-          error: (err: Error) => alert(err.message),
+          next: () => {},
+          error: (err: Error) => this.toastr.error(err.message, 'Error'),
         });
     });
   }
@@ -317,6 +346,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
         return;
       }
 
+      // Start listening to live point updates
       this.subscribeToUserPoints(user.uid);
 
       this.householdService.loadMyHousehold().subscribe({

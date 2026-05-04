@@ -1,5 +1,6 @@
 import { Component, Input, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { ToastrService } from 'ngx-toastr';
 import { Task } from '../../models/task';
 import { Household } from '../../models/household';
 import { TaskService } from '../../services/task';
@@ -17,21 +18,23 @@ export class TaskListComponent {
   @Input() currentUserUid: string = '';
   @Input() isAdmin: boolean = false;
   @Input() tasksLoadError: string = '';
-  @Input() processingTaskIds: Set<string> = new Set<string>();
 
-  @Output() completeTask = new EventEmitter<string>();
   @Output() openCreateTask = new EventEmitter<void>();
-  @Output() editTask = new EventEmitter<Task>();
+  @Output() openTask = new EventEmitter<Task>();
 
-  // ── Toast state (SCRUM-62) ────────────────────────────────────────────────
-  toastMessage: string = '';
-  toastVisible: boolean = false;
-  private toastTimer: any = null;
+  processingTaskIds = new Set<string>();
 
-  constructor(private taskService: TaskService) { }
+  constructor(
+    private taskService: TaskService,
+    private toastr: ToastrService,
+  ) {}
 
   isAssignedToMe(assignedTo: string): boolean {
     return assignedTo === this.currentUserUid;
+  }
+
+  isCompleted(task: any): boolean {
+    return task.status === 'completed';
   }
 
   isTooEarly(dueDateStr: string | null, intervalDays: number | null | undefined): boolean {
@@ -100,25 +103,41 @@ export class TaskListComponent {
     return '';
   }
 
-  // ── SCRUM-62: Complete with late penalty toast ────────────────────────────
   onComplete(taskId: string): void {
-    const task = this.tasks.find(t => t.id === taskId);
+    if (this.processingTaskIds.has(taskId)) return;
+
+    const task = this.tasks.find((t) => t.id === taskId);
     const currentDueDate = task?.due_date ?? '';
+
+    this.processingTaskIds.add(taskId);
 
     this.taskService.completeTask(taskId, currentDueDate).subscribe({
       next: (response) => {
+        this.processingTaskIds.delete(taskId);
         if (response.was_late) {
-          this.showToast(
-            `Task completed late! −${response.points_deducted} point penalty applied. You earned ${response.points_awarded} pts.`
+          this.toastr.warning(
+            `−${response.points_deducted} pt late penalty applied. You still earned ${response.points_awarded} pts!`,
+            '⏰ Better late than never!',
+            { enableHtml: true, timeOut: 6000 },
           );
         } else if (response.points_awarded > 0) {
-          this.showToast(`Great job! +${response.points_awarded} pts earned.`);
+          this.toastr.success(
+            `+${response.points_awarded} pts added to your score`,
+            '🏆 Quest complete!',
+            { enableHtml: true },
+          );
+        } else {
+          this.toastr.success('Chore cleared from the board.', 'Done!', {
+            enableHtml: true,
+          });
         }
-        // Removed: this.completeTask.emit(taskId)
-        // TaskService already updates tasks$ stream directly
       },
       error: (err: Error) => {
-        this.showToast(err.message);
+        this.processingTaskIds.delete(taskId);
+        this.toastr.error(err.message, 'Something went wrong', {
+          enableHtml: true,
+          timeOut: 5000,
+        });
       },
     });
   }
@@ -127,16 +146,7 @@ export class TaskListComponent {
     this.openCreateTask.emit();
   }
 
-  onEditTask(task: Task): void {
-    this.editTask.emit(task);
-  }
-
-  showToast(message: string): void {
-    if (this.toastTimer) clearTimeout(this.toastTimer);
-    this.toastMessage = message;
-    this.toastVisible = true;
-    this.toastTimer = setTimeout(() => {
-      this.toastVisible = false;
-    }, 4000);
+  onOpenTask(task: Task): void {
+    this.openTask.emit(task);
   }
 }

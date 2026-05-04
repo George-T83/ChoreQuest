@@ -11,10 +11,6 @@
     </div>
 
     <div class="modal-body">
-      @if (errorMessage) {
-        <div class="error-banner">{{ errorMessage }}</div>
-      }
-
       <!-- Title -->
       <div class="form-group">
         <label for="task-title">Task Title</label>
@@ -32,6 +28,23 @@
         @if (showValidationErrors && getNormalizedTitle() === null) {
           <p class="field-error-text">Task title is required.</p>
         }
+      </div>
+
+      <!-- Description -->
+      <div class="form-group">
+        <label for="task-description"
+          >Description <span class="optional-label">(optional)</span></label
+        >
+        <mat-form-field appearance="outline" class="material-field no-floating-label">
+          <textarea
+            matInput
+            id="task-description"
+            [(ngModel)]="description"
+            placeholder="Add details or instructions for this chore..."
+            rows="3"
+            maxlength="500"
+          ></textarea>
+        </mat-form-field>
       </div>
 
       <!-- Assign To -->
