@@ -3,176 +3,264 @@
     class="modal-card card"
     role="dialog"
     aria-modal="true"
-    aria-labelledby="edit-task-title"
+    aria-labelledby="task-modal-title"
     (click)="$event.stopPropagation()"
   >
-    <div class="modal-header">
-      <h3 id="edit-task-title">Edit Task</h3>
-    </div>
+    @if (isAdmin) {
+      <div class="modal-header">
+        <h3 id="task-modal-title">Edit Task</h3>
+      </div>
+    }
 
     <div class="modal-body">
-      @if (errorMessage) {
-        <div class="error-banner">{{ errorMessage }}</div>
-      }
-
-      <div class="form-group">
-        <label for="task-title">Task Title</label>
-        <mat-form-field appearance="outline" class="material-field no-floating-label">
-          <input
-            matInput
-            id="task-title"
-            type="text"
-            [(ngModel)]="title"
-            placeholder="e.g. Take out trash"
-            maxlength="100"
-            class="material-field"
-          />
-        </mat-form-field>
-        @if (showValidationErrors && getNormalizedTitle() === null) {
-          <p class="field-error-text">Task title is required.</p>
+      @if (isAdmin) {
+        @if (errorMessage) {
+          <div class="error-banner">{{ errorMessage }}</div>
         }
-      </div>
 
-      <div class="form-group">
-        <label for="task-assignee">Assign To</label>
-        <mat-form-field appearance="outline" class="material-field no-floating-label">
-          <mat-select
-            id="task-assignee"
-            [(ngModel)]="assigned_to"
-            panelClass="custom-select-panel"
-            placeholder="Select a member..."
-            class="material-field"
-          >
-            @for (member of members; track member.id) {
-              <mat-option [value]="member.id">{{ member.display_name }}</mat-option>
-            }
-          </mat-select>
-        </mat-form-field>
-        @if (showValidationErrors && getNormalizedAssignedTo() === null) {
-          <p class="field-error-text">Please assign this task to a member.</p>
-        }
-      </div>
-
-      <div class="form-group">
-        <label for="task-due">Due Date</label>
-        <mat-form-field appearance="outline" class="material-field no-floating-label">
-          <input
-            matInput
-            id="task-due"
-            [matDatepicker]="picker"
-            [(ngModel)]="due_date"
-            readonly
-            (click)="picker.open()"
-            class="material-field"
-          />
-          <mat-datepicker-toggle matSuffix [for]="picker"></mat-datepicker-toggle>
-          <mat-datepicker #picker></mat-datepicker>
-        </mat-form-field>
-        @if (showValidationErrors && getNormalizedDueDate() === null) {
-          <p class="field-error-text">Please select a valid due date.</p>
-        }
-      </div>
-
-      <div class="form-group">
-        <label>Difficulty</label>
-        <mat-button-toggle-group
-          class="difficulty-toggle-group"
-          name="difficulty"
-          [(ngModel)]="difficulty"
-          aria-label="Task difficulty"
-        >
-          <mat-button-toggle class="easy-toggle" value="Easy">Easy</mat-button-toggle>
-          <mat-button-toggle class="medium-toggle" value="Medium">Medium</mat-button-toggle>
-          <mat-button-toggle class="hard-toggle" value="Hard">Hard</mat-button-toggle>
-        </mat-button-toggle-group>
-        @if (showValidationErrors && getNormalizedDifficulty() === null) {
-          <p class="field-error-text">Please select a difficulty level.</p>
-        }
-      </div>
-
-      <div class="form-group">
-        <label for="task-points">Point Value</label>
-        <mat-form-field appearance="outline" class="material-field points-field no-floating-label">
-          <span matPrefix class="points-prefix">⭐</span>
-          <input
-            matInput
-            id="task-points"
-            type="number"
-            [(ngModel)]="points"
-            min="0"
-            step="1"
-            placeholder="e.g. 10"
-            class="material-field"
-          />
-          <span matSuffix class="points-suffix">pts</span>
-        </mat-form-field>
-        @if (showValidationErrors && getPointsErrorMessage() !== null) {
-          <p class="field-error-text">{{ getPointsErrorMessage() }}</p>
-        } @else {
-          <p class="form-hint">Points awarded to the member when they complete this task.</p>
-        }
-      </div>
-
-      <div class="form-group recurring-group">
-        <div class="recurring-toggle-row">
-          <div class="recurring-label-block">
-            <span class="form-group-label">Recurring Task</span>
-            <span class="form-hint">Task resets automatically after completion</span>
-          </div>
-          <mat-slide-toggle
-            [(ngModel)]="is_recurring"
-            color="primary"
-            aria-label="Toggle recurring task"
-          />
+        <div class="form-group">
+          <label for="task-title">Task Title</label>
+          <mat-form-field appearance="outline" class="material-field no-floating-label">
+            <input
+              matInput
+              id="task-title"
+              type="text"
+              [(ngModel)]="title"
+              placeholder="e.g. Take out trash"
+              maxlength="100"
+              class="material-field"
+            />
+          </mat-form-field>
+          @if (showValidationErrors && getNormalizedTitle() === null) {
+            <p class="field-error-text">Task title is required.</p>
+          }
         </div>
 
-        @if (is_recurring) {
-          <div class="recurrence-interval-row">
-            <span class="recurring-interval-text">Repeat every</span>
-            <mat-form-field
-              appearance="outline"
-              class="material-field interval-field no-floating-label"
+        <div class="form-group">
+          <label for="task-description"
+            >Description <span class="optional-label">(optional)</span></label
+          >
+          <mat-form-field appearance="outline" class="material-field no-floating-label">
+            <textarea
+              matInput
+              id="task-description"
+              [(ngModel)]="description"
+              placeholder="Add details or instructions for this chore..."
+              rows="3"
+              maxlength="500"
+            ></textarea>
+          </mat-form-field>
+        </div>
+
+        <div class="form-group">
+          <label for="task-assignee">Assign To</label>
+          <mat-form-field appearance="outline" class="material-field no-floating-label">
+            <mat-select
+              id="task-assignee"
+              [(ngModel)]="assigned_to"
+              panelClass="custom-select-panel"
+              placeholder="Select a member..."
+              class="material-field"
             >
-              <input
-                matInput
-                type="number"
-                [(ngModel)]="recurrence_interval_days"
-                min="1"
-                step="1"
-                placeholder="7"
-                class="material-field"
-              />
-            </mat-form-field>
-            <span class="recurring-interval-text">day(s)</span>
-          </div>
-          @if (showValidationErrors && getRecurrenceErrorMessage() !== null) {
-            <p class="field-error-text">{{ getRecurrenceErrorMessage() }}</p>
+              @for (member of members; track member.id) {
+                <mat-option [value]="member.id">{{ member.display_name }}</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+          @if (showValidationErrors && getNormalizedAssignedTo() === null) {
+            <p class="field-error-text">Please assign this task to a member.</p>
           }
-        }
-      </div>
+        </div>
+
+        <div class="form-group">
+          <label for="task-due">Due Date</label>
+          <mat-form-field appearance="outline" class="material-field no-floating-label">
+            <input
+              matInput
+              id="task-due"
+              [matDatepicker]="picker"
+              [(ngModel)]="due_date"
+              readonly
+              (click)="picker.open()"
+              class="material-field"
+            />
+            <mat-datepicker-toggle matSuffix [for]="picker"></mat-datepicker-toggle>
+            <mat-datepicker #picker></mat-datepicker>
+          </mat-form-field>
+          @if (showValidationErrors && getNormalizedDueDate() === null) {
+            <p class="field-error-text">Please select a valid due date.</p>
+          }
+        </div>
+
+        <div class="form-group">
+          <label>Difficulty</label>
+          <mat-button-toggle-group
+            class="difficulty-toggle-group"
+            name="difficulty"
+            [(ngModel)]="difficulty"
+            aria-label="Task difficulty"
+          >
+            <mat-button-toggle class="easy-toggle" value="Easy">Easy</mat-button-toggle>
+            <mat-button-toggle class="medium-toggle" value="Medium">Medium</mat-button-toggle>
+            <mat-button-toggle class="hard-toggle" value="Hard">Hard</mat-button-toggle>
+          </mat-button-toggle-group>
+          @if (showValidationErrors && getNormalizedDifficulty() === null) {
+            <p class="field-error-text">Please select a difficulty level.</p>
+          }
+        </div>
+
+        <div class="form-group">
+          <label for="task-points">Point Value</label>
+          <mat-form-field
+            appearance="outline"
+            class="material-field points-field no-floating-label"
+          >
+            <span matPrefix class="points-prefix">⭐</span>
+            <input
+              matInput
+              id="task-points"
+              type="number"
+              [(ngModel)]="points"
+              min="0"
+              step="1"
+              placeholder="e.g. 10"
+              class="material-field"
+            />
+            <span matSuffix class="points-suffix">pts</span>
+          </mat-form-field>
+          @if (showValidationErrors && getPointsErrorMessage() !== null) {
+            <p class="field-error-text">{{ getPointsErrorMessage() }}</p>
+          } @else {
+            <p class="form-hint">Points awarded to the member when they complete this task.</p>
+          }
+        </div>
+
+        <div class="form-group recurring-group">
+          <div class="recurring-toggle-row">
+            <div class="recurring-label-block">
+              <span class="form-group-label">Recurring Task</span>
+              <span class="form-hint">Task resets automatically after completion</span>
+            </div>
+            <mat-slide-toggle
+              [(ngModel)]="is_recurring"
+              color="primary"
+              aria-label="Toggle recurring task"
+            />
+          </div>
+
+          @if (is_recurring) {
+            <div class="recurrence-interval-row">
+              <span class="recurring-interval-text">Repeat every</span>
+              <mat-form-field
+                appearance="outline"
+                class="material-field interval-field no-floating-label"
+              >
+                <input
+                  matInput
+                  type="number"
+                  [(ngModel)]="recurrence_interval_days"
+                  min="1"
+                  step="1"
+                  placeholder="7"
+                  class="material-field"
+                />
+              </mat-form-field>
+              <span class="recurring-interval-text">day(s)</span>
+            </div>
+            @if (showValidationErrors && getRecurrenceErrorMessage() !== null) {
+              <p class="field-error-text">{{ getRecurrenceErrorMessage() }}</p>
+            }
+          }
+        </div>
+      } @else {
+        <!-- Read-only detail view for non-admins (wireframe) -->
+        <div class="detail-view detail-wireframe">
+          <div class="detail-top">
+            <div class="title-row">
+              <h3 id="task-modal-title">{{ task.title }}</h3>
+              <span class="pill difficulty-pill">{{ task.difficulty }}</span>
+            </div>
+
+            @if (task.is_recurring && task.recurrence_interval_days) {
+              <div class="recurring-pill">🔁 Recurring · {{ task.recurrence_interval_days === 7 ? 'Weekly' : (task.recurrence_interval_days === 1 ? 'Daily' : task.recurrence_interval_days + ' days') }}</div>
+            }
+          </div>
+
+          <div class="stat-cards">
+            <div class="stat-card">
+              <div class="stat-label">Assigned to</div>
+              <div class="assignee-badge">
+                <div class="assignee-avatar">{{ getMemberName(task.assigned_to).charAt(0).toUpperCase() }}</div>
+                <span class="assignee-name">{{ getMemberName(task.assigned_to) }}</span>
+              </div>
+            </div>
+
+            <div class="stat-card">
+              <div class="stat-label">Due date</div>
+              <div class="due-value">{{ formatDueDate(task.due_date) }}</div>
+            </div>
+
+            @if (!isAdmin) {
+              <div class="stat-card">
+                <div class="stat-label">Status</div>
+                <div class="status-value"><span class="status-badge" [ngClass]="getStatusClass(task)">{{ getStatusText(task) }}</span></div>
+              </div>
+            }
+          </div>
+
+          <div class="stat-cards pt-0">
+            <div class="stat-card">
+              <div class="stat-label">Point Value</div>
+              <div class="stat-value">{{ task.points }} pts</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Difficulty</div>
+              <div class="stat-value">{{ task.difficulty }}</div>
+            </div>
+          </div>
+
+          @if (task.description) {
+            <div class="description-box">
+              <div class="desc-label">Description</div>
+              <p class="desc-text">{{ task.description }}</p>
+            </div>
+          }
+
+          <div class="detail-actions">
+            @if (task.status !== 'completed') {
+              <button class="btn btn--primary btn--complete-large" (click)="markAsComplete()" [disabled]="isCompleting">
+                {{ isCompleting ? 'Completing...' : '✓ Mark as Complete' }}
+              </button>
+              <div class="points-note">+{{ task.points }} pts will be added to your score</div>
+            } @else {
+              <div class="completed-note">This task is already completed.</div>
+            }
+          </div>
+        </div>
+      }
     </div>
 
     <div class="modal-footer">
-      <button
-        class="btn btn--danger"
-        (click)="deleteTask()"
-        [disabled]="isSubmitting || isDeleting"
-      >
-        {{ isDeleting ? 'Deleting...' : 'Delete Task' }}
-      </button>
-
-      <div class="footer-actions">
-        <button class="btn btn--outline" (click)="close()" [disabled]="isSubmitting || isDeleting">
-          Cancel
-        </button>
-        <button class="btn btn--primary" (click)="submit()" [disabled]="isSubmitting || isDeleting">
-          @if (isSubmitting) {
-            Saving...
-          } @else {
-            Save Changes
+      @if (isAdmin) {
+        <div class="footer-left">
+          <button class="btn btn--danger" (click)="deleteTask()" [disabled]="isBusy">
+            {{ isDeleting ? 'Deleting...' : 'Delete Task' }}
+          </button>
+          @if (task.status === 'completed') {
+            <button class="btn btn--reopen" (click)="onReopen()" [disabled]="isBusy">
+              {{ isReopening ? 'Reopening...' : '↩ Reopen Task' }}
+            </button>
           }
-        </button>
-      </div>
+        </div>
+        <div class="footer-actions">
+          <button class="btn btn--outline" (click)="close()" [disabled]="isBusy">Cancel</button>
+          <button class="btn btn--primary" (click)="submit()" [disabled]="isBusy">
+            {{ isSubmitting ? 'Saving...' : 'Save Changes' }}
+          </button>
+        </div>
+      } @else {
+        <button class="btn btn--outline" (click)="close()">Close</button>
+      }
     </div>
   </div>
 </div>

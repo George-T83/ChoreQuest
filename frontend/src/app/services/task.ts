@@ -2,7 +2,7 @@ import { inject, Injectable } from '@angular/core';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Observable, BehaviorSubject, throwError } from 'rxjs';
 import { tap, catchError } from 'rxjs/operators';
-import { Task, CreateTaskPayload } from '../models/task';
+import { Task, CreateTaskPayload, CompleteTaskResponse } from '../models/task';
 
 const API_BASE = '/api/tasks';
 
@@ -29,26 +29,9 @@ export class TaskService {
     );
   }
 
-  completeTask(
-    taskId: string,
-    currentDueDate: string,
-  ): Observable<{
-    detail: string;
-    points_awarded: number;
-    was_late: boolean;
-    points_deducted: number;
-    is_recurring: boolean;
-    task: Task;
-  }> {
+  completeTask(taskId: string, currentDueDate: string): Observable<CompleteTaskResponse> {
     return this.http
-      .post<{
-        detail: string;
-        points_awarded: number;
-        was_late: boolean;
-        points_deducted: number;
-        is_recurring: boolean;
-        task: Task;
-      }>(`${API_BASE}/${taskId}/complete/`, { due_date: currentDueDate })
+      .post<CompleteTaskResponse>(`${API_BASE}/${taskId}/complete/`, { due_date: currentDueDate })
       .pipe(
         tap((response) => {
           const currentTasks = this._tasks$.getValue();
@@ -69,6 +52,16 @@ export class TaskService {
           t.id === taskId ? updatedTask : t
         );
         this._tasks$.next(updatedTasksList);
+      }),
+      catchError(this.handleError),
+    );
+  }
+
+  reopenTask(taskId: string): Observable<Task> {
+    return this.http.patch<Task>(`${API_BASE}/${taskId}/update/`, { reopen: true }).pipe(
+      tap((updatedTask) => {
+        const currentTasks = this._tasks$.getValue();
+        this._tasks$.next(currentTasks.map((t) => (t.id === taskId ? updatedTask : t)));
       }),
       catchError(this.handleError),
     );

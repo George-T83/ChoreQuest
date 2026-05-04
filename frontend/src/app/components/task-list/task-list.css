@@ -50,20 +50,19 @@
   display: grid;
   grid-template-columns: min-content 1fr;
   gap: 0.75rem 1rem;
-  padding: 1rem;
-  border: 1.5px solid transparent;
-  border-radius: 0.75rem;
+  padding: 1rem 1.25rem;
+  border: 1px solid var(--gray-200, #e5e7eb);
+  border-radius: 0.875rem;
   background: #ffffff;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-  transition:
-    border-color 0.2s,
-    opacity 0.2s;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  transition: all 0.2s ease;
   width: 100%;
   box-sizing: border-box;
 }
 
 .task--overdue {
-  border-color: var(--red-500);
+  border-color: var(--red-300, #fca5a5);
+  background: rgba(239, 68, 68, 0.02);
 }
 
 .task--done {
@@ -95,6 +94,14 @@
   flex-direction: column;
   justify-content: center;
   min-width: 0;
+}
+
+.task-details--clickable {
+  cursor: pointer;
+}
+
+.task-details--clickable:hover h4 {
+  color: var(--indigo-600, #4f46e5) !important;
 }
 
 .task-details h4 {
@@ -219,30 +226,35 @@
   flex-direction: row;
   align-items: center;
   gap: 0.5rem;
-  margin-top: 0.5rem;
+  margin-top: 0.75rem;
 
   /* Dock Styling */
-  background: var(--gray-50, #f8fafc);
+  background: linear-gradient(135deg, var(--gray-50, #f8fafc), var(--gray-100, #f3f4f6));
   border: 1px solid var(--gray-200, #e2e8f0);
-  padding: 0.35rem 0.35rem 0.35rem 0.75rem;
+  padding: 0.4rem 0.5rem 0.4rem 0.75rem;
   border-radius: 999px; /* Pill shape */
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
 }
 
 .btn-complete {
-  padding: 0.4rem 1.25rem;
-  border-radius: 999px; /* perfectly matches the pill dock */
+  padding: 0.4rem 1.2rem;
+  border-radius: 999px;
   border: none;
-  background: #16a34a;
+  background: linear-gradient(180deg, #22c55e 0%, #16a34a 100%);
   color: #fff;
   font-size: 0.8125rem;
   font-weight: 700;
   cursor: pointer;
   white-space: nowrap;
   margin: 0;
+  box-shadow: 0 2px 4px rgba(34, 197, 94, 0.2);
+  transition: all 0.2s ease;
 }
 
 .btn-complete:hover:not(:disabled) {
-  background: #15803d;
+  background: linear-gradient(180deg, #16a34a 0%, #15803d 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(34, 197, 94, 0.3);
 }
 
 .btn-complete:disabled {
@@ -251,8 +263,22 @@
 }
 
 .btn-complete--locked {
-  background: var(--gray-200);
-  color: var(--gray-400);
+  background: var(--gray-300, #d1d5db);
+  color: var(--gray-500, #6b7280);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+}
+
+.btn-complete--locked:hover {
+  background: var(--gray-300, #d1d5db);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+  transform: none;
+}
+
+/* Standalone complete button (non-admin) */
+.btn-complete.standalone {
+  padding: 0.4rem 0.9rem;
+  border-radius: 999px;
+  margin-left: auto;
 }
 
 /* =========================================
@@ -261,9 +287,9 @@
 .btn-icon {
   background: transparent;
   border: none;
-  color: var(--gray-400, #9ca3af);
-  width: 2rem;
-  height: 2rem; /* Fixed width/height so hover makes a perfect circle */
+  color: var(--gray-500, #6b7280);
+  width: 1.875rem;
+  height: 1.875rem;
   border-radius: 50%;
   cursor: pointer;
   display: inline-flex;
@@ -274,17 +300,18 @@
 }
 
 .btn-icon svg {
-  width: 1.15rem;
-  height: 1.15rem;
+  width: 1rem;
+  height: 1rem;
 }
 
 .btn-icon:hover:not(:disabled) {
-  background-color: var(--gray-200, #e5e7eb); /* Slightly darker gray for dock hover */
+  background-color: var(--indigo-100, #e0e7ff);
   color: var(--indigo-600, #4f46e5);
+  transform: scale(1.05);
 }
 
 .btn-icon:disabled {
-  opacity: 0.5;
+  opacity: 0.4;
   cursor: not-allowed;
 }
 
@@ -342,46 +369,10 @@
     justify-self: auto;
     margin-top: 0;
   }
-
-  /* ── Toast notification ───────────────────────────────────────── */
-  .toast {
-    position: fixed;
-    bottom: 5rem;
-    left: 50%;
-    transform: translateX(-50%);
-    background: #16a34a;
-    color: #fff;
-    padding: 0.75rem 1.5rem;
-    border-radius: 0.5rem;
-    font-size: 0.875rem;
-    font-weight: 600;
-    z-index: 999;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-    text-align: center;
-    max-width: 90vw;
-    animation: fadeInUp 0.3s ease;
-  }
-
-  .toast--late {
-    background: #dc2626;
-  }
-
-  @keyframes fadeInUp {
-    from {
-      opacity: 0;
-      transform: translateX(-50%) translateY(10px);
-    }
-
-    to {
-      opacity: 1;
-      transform: translateX(-50%) translateY(0);
-    }
-  }
-
   /* ── Recurrence tag ───────────────────────────────────────────── */
   .tag--recurrence {
-    background: rgba(14,165,233,0.12);
+    background: rgba(14, 165, 233, 0.12);
     color: #0284c7;
-    border: 1px solid rgba(14,165,233,0.3);
+    border: 1px solid rgba(14, 165, 233, 0.3);
   }
 }

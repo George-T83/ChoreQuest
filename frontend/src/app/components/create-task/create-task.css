@@ -91,6 +91,13 @@
   color: var(--gray-400);
 }
 
+.optional-label {
+  font-weight: 400;
+  color: var(--gray-400);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
 /* =========================================
    MATERIAL FORM FIELDS & INPUTS
 ========================================= */
@@ -251,7 +258,6 @@
   padding: 0;
   font-size: 0.8rem;
   font-weight: 600;
-  color: var(--gray-500);
 }
 
 /* Toggle Checked Backgrounds */

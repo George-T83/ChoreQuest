@@ -1,0 +1,341 @@
+/* === PODIUM STYLES === */
+.podium-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  gap: 16px;
+  margin: 32px 16px;
+}
+
+.podium-wrapper--compact {
+  gap: 24px;
+}
+
+.podium-pillar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100px;
+}
+
+.podium-pillar.rank-1 .pillar-block {
+  height: 120px;
+  background-color: #5f55d2;
+}
+
+.podium-pillar.rank-2 .pillar-block {
+  height: 85px;
+  background-color: #afa5f3;
+}
+
+.podium-pillar.rank-3 .pillar-block {
+  height: 60px;
+  background-color: #74c69d;
+}
+
+.pillar-block {
+  width: 100%;
+  border-radius: 16px 16px 0 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding-bottom: 0.5rem;
+  align-items: center;
+  color: white;
+  font-weight: bold;
+  font-size: 1.3rem;
+  margin-top: -24px;
+  z-index: 0;
+}
+
+.podium-pillar .avatar {
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-weight: bold;
+  color: white;
+  z-index: 10;
+  border: 5px solid #f8f9fb;
+  flex-shrink: 0;
+  box-sizing: content-box;
+  width: auto;
+  height: auto;
+  padding: 0;
+  background: none;
+  cursor: default;
+}
+
+.podium-pillar.rank-1 .avatar {
+  width: 72px;
+  height: 72px;
+  background-color: #afa5f3;
+  font-size: 1.5rem;
+}
+
+.podium-pillar.rank-2 .avatar {
+  width: 56px;
+  height: 56px;
+  background-color: #c8c5f5;
+  font-size: 1.1rem;
+}
+
+.podium-pillar.rank-3 .avatar {
+  width: 56px;
+  height: 56px;
+  background-color: #a5e0c1;
+  font-size: 1.1rem;
+}
+
+.star {
+  color: #f59e0b;
+  font-size: 24px;
+  margin-bottom: -4px;
+  z-index: 2;
+}
+
+.podium-name {
+  font-weight: 600;
+  font-size: 1rem;
+  margin-top: 12px;
+  color: #1a1a2e;
+  text-align: center;
+}
+
+.podium-pts {
+  font-size: 0.85rem;
+  color: #8e98a8;
+  text-align: center;
+}
+
+.podium-pts.top-pts {
+  color: #5f55d2;
+  font-weight: bold;
+}
+
+/* === ALL MEMBERS LIST === */
+.all-members-section {
+  padding: 0 16px;
+  margin-top: 12px;
+}
+
+.section-title {
+  font-size: 0.75rem;
+  color: #8e98a8;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  margin-bottom: 12px;
+  font-weight: 600;
+}
+
+.members-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.member-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.member-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.rank-number {
+  font-weight: bold;
+  color: #8e98a8;
+  width: 16px;
+  text-align: center;
+  font-size: 0.9rem;
+}
+
+.rank-number.top-rank {
+  color: #f59e0b;
+}
+
+.member-left .avatar {
+  width: 40px;
+  height: 40px;
+  background: #afa5f3;
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-weight: bold;
+  font-size: 0.85rem;
+}
+
+.member-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.member-name {
+  font-weight: 600;
+  color: #1a1a2e;
+  font-size: 0.95rem;
+}
+
+.member-streak {
+  font-size: 0.75rem;
+  color: #8e98a8;
+}
+
+.member-streak.no-activity {
+  color: #dc2626;
+}
+
+.member-right {
+  text-align: right;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.member-pts {
+  font-weight: bold;
+  color: #1a1a2e;
+  font-size: 0.95rem;
+}
+
+.member-pts.top-pts {
+  color: #5f55d2;
+}
+
+.badge {
+  font-size: 0.65rem;
+  font-weight: bold;
+  padding: 3px 8px;
+  border-radius: 6px;
+  margin-top: 4px;
+  text-transform: uppercase;
+}
+
+.badge[data-badge='MVP'] {
+  background: #fef3c7;
+  color: #d97706;
+}
+
+.badge[data-badge='On fire'] {
+  background: #d1fae5;
+  color: #059669;
+}
+
+.badge[data-badge='You'] {
+  background: #5f55d2;
+  color: white;
+}
+
+/* === STATS STRIP === */
+.stats-strip {
+  display: flex;
+  gap: 12px;
+  padding: 0 16px;
+  margin-top: 24px;
+  margin-bottom: 24px;
+}
+
+.stat-card {
+  flex: 1;
+  background: white;
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  border: 1px solid #f0f0f0;
+}
+
+.stat-value {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: #1a1a2e;
+  margin-bottom: 4px;
+}
+
+.stat-label {
+  font-size: 0.75rem;
+  color: #8e98a8;
+  line-height: 1.2;
+}
+
+/* MOBILE ADJUSTMENTS */
+@media (max-width: 768px) {
+  .podium-wrapper {
+    gap: 8px;
+    margin: 24px 8px;
+  }
+
+  .podium-pillar {
+    width: 80px;
+  }
+
+  .podium-pillar.rank-1 .pillar-block {
+    height: 90px;
+  }
+
+  .podium-pillar.rank-2 .pillar-block {
+    height: 65px;
+  }
+
+  .podium-pillar.rank-3 .pillar-block {
+    height: 50px;
+  }
+
+  .podium-pillar.rank-1 .avatar {
+    width: 56px;
+    height: 56px;
+    font-size: 1.2rem;
+  }
+
+  .podium-pillar.rank-2 .avatar,
+  .podium-pillar.rank-3 .avatar {
+    width: 44px;
+    height: 44px;
+    font-size: 0.9rem;
+  }
+
+  .podium-name {
+    font-size: 0.9rem;
+    margin-top: 8px;
+  }
+
+  .podium-pts {
+    font-size: 0.75rem;
+  }
+
+  .member-row {
+    padding: 10px 12px;
+  }
+
+  .member-name {
+    font-size: 0.85rem;
+  }
+
+  .member-pts {
+    font-size: 0.85rem;
+  }
+
+  .stat-value {
+    font-size: 1.25rem;
+  }
+
+  .all-members-section {
+    padding: 0 12px;
+  }
+
+  .stats-strip {
+    padding: 0 12px;
+  }
+}
