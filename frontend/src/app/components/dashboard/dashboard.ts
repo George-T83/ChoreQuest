@@ -1,16 +1,9 @@
-import {
-  Component,
-  inject,
-  OnInit,
-  OnDestroy,
-  ChangeDetectorRef,
-  HostListener,
-} from '@angular/core';
+import { Component, inject, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { ToastrService } from 'ngx-toastr';
 import { FormsModule } from '@angular/forms';
-import { Router, RouterModule } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { Auth } from '@angular/fire/auth';
-import { Firestore, doc, onSnapshot } from '@angular/fire/firestore';
 import { BehaviorSubject, combineLatest } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { HouseholdService } from '../../services/household';
@@ -24,17 +17,24 @@ import { EditTaskComponent } from '../edit-task/edit-task';
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule, RouterModule, FormsModule, CreateTaskComponent, TaskListComponent, EditTaskComponent],
+  imports: [
+    CommonModule,
+    FormsModule,
+    RouterLink,
+    CreateTaskComponent,
+    TaskListComponent,
+    EditTaskComponent,
+  ],
   templateUrl: './dashboard.html',
   styleUrls: ['./dashboard.css'],
 })
 export class DashboardComponent implements OnInit, OnDestroy {
   private auth = inject(Auth);
-  private firestore = inject(Firestore);
   private router = inject(Router);
   private householdService = inject(HouseholdService);
   private taskService = inject(TaskService);
   private cdr = inject(ChangeDetectorRef);
+  private toastr = inject(ToastrService);
 
   household$ = this.householdService.household$;
 
@@ -120,7 +120,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
     }),
   );
 
-  isProfileMenuOpen = false;
   isInitialLoading = true;
   isCreateTaskOpen = false;
   tasksLoadError = '';
@@ -129,31 +128,11 @@ export class DashboardComponent implements OnInit, OnDestroy {
   taskToEdit: Task | null = null;
 
   currentUser: any = null;
-  currentUserPoints = 0;
-  currentUserName: string | null = null;
 
   private authUnsubscribe: (() => void) | null = null;
-  private pointsUnsubscribe: (() => void) | null = null;
 
   onFilterChange() {
     this.filters$.next(this.filterState);
-  }
-
-  toggleProfileMenu() {
-    this.isProfileMenuOpen = !this.isProfileMenuOpen;
-  }
-
-  @HostListener('document:click', ['$event'])
-  onDocumentClick(event: MouseEvent) {
-    if (!this.isProfileMenuOpen) return;
-
-    const target = event.target as HTMLElement | null;
-    if (!target) return;
-
-    if (!target.closest('.profile-menu-container')) {
-      this.isProfileMenuOpen = false;
-      this.cdr.detectChanges();
-    }
   }
 
   isAdmin(household: Household): boolean {
@@ -186,6 +165,11 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.taskToEdit = null;
   }
 
+  onTaskUpdated() {
+    this.reloadHouseholdTasks();
+    this.closeEditTask();
+  }
+
   private reloadHouseholdTasks() {
     this.tasksLoadError = '';
     this.taskService.loadHouseholdTasks().subscribe({
@@ -197,22 +181,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
         this.tasksLoadError = err.message;
         this.cdr.detectChanges();
       },
-    });
-  }
-
-  private subscribeToUserPoints(uid: string) {
-    if (this.pointsUnsubscribe) {
-      this.pointsUnsubscribe();
-    }
-
-    const userDocRef = doc(this.firestore, `users/${uid}`);
-    this.pointsUnsubscribe = onSnapshot(userDocRef, (snapshot) => {
-      if (snapshot.exists()) {
-        const data = snapshot.data();
-        this.currentUserPoints = data['points'] ?? 0;
-        this.currentUserName = data['display_name'] || null;
-        this.cdr.detectChanges();
-      }
     });
   }
 
@@ -249,8 +217,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
         return;
       }
 
-      this.subscribeToUserPoints(user.uid);
-
       this.householdService.loadMyHousehold().subscribe({
         next: (household) => {
           this.isInitialLoading = false;
@@ -267,39 +233,26 @@ export class DashboardComponent implements OnInit, OnDestroy {
     });
   }
 
-  ngOnDestroy() {
-    if (this.authUnsubscribe) {
-      this.authUnsubscribe();
-    }
-    if (this.pointsUnsubscribe) {
-      this.pointsUnsubscribe();
-    }
-  }
-
   copyInviteCode(code: string) {
     navigator.clipboard
       .writeText(code)
       .then(() => {
-        alert(`Invite code ${code} copied to clipboard! Paste it to your roommate.`);
+        this.toastr.success(`Invite code ${code} copied to clipboard!`, '📋 Copied');
       })
       .catch((err) => {
         console.error('Failed to copy text: ', err);
+        this.toastr.error('Failed to copy code to clipboard.', 'Error');
       });
-  }
-
-  async logout() {
-    try {
-      await this.auth.signOut();
-      this.householdService.clearHousehold();
-      this.taskService.clearTasks();
-      this.router.navigate(['/login']);
-    } catch (error) {
-      console.error('Error logging out:', error);
-    }
   }
 
   getMemberName(uid: string, household: Household): string {
     const member = household.members.find((m) => m.id === uid);
     return member ? member.display_name : 'Unknown';
+  }
+
+  ngOnDestroy(): void {
+    if (this.authUnsubscribe) {
+      this.authUnsubscribe();
+    }
   }
 }

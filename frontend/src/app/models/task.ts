@@ -1,6 +1,7 @@
 export interface Task {
   id: string;
   title: string;
+  description?: string;
   assigned_to: string;
   assigned_to_name?: string;
   created_by: string;
@@ -18,6 +19,7 @@ export interface Task {
 
 export interface CreateTaskPayload {
   title: string;
+  description?: string;
   assigned_to: string;
   due_date: string;
   difficulty: 'Easy' | 'Medium' | 'Hard';

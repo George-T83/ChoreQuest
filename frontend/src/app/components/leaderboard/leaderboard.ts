@@ -1,16 +1,11 @@
-import {
-  Component,
-  OnInit,
-  OnDestroy,
-  ChangeDetectorRef,
-  inject,
-  HostListener,
-} from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef, inject } from '@angular/core';
+import { Subscription } from 'rxjs';
 import { CommonModule } from '@angular/common';
-import { HttpClient } from '@angular/common/http';
-import { Firestore, collection, query, onSnapshot, where, doc } from '@angular/fire/firestore';
-import { Router, RouterModule } from '@angular/router';
+import { Firestore, collection, query, onSnapshot, where } from '@angular/fire/firestore';
+import { Router } from '@angular/router';
 import { Auth } from '@angular/fire/auth';
+import { ToastrService } from 'ngx-toastr';
+import { LeaderboardService } from '../../services/leaderboard';
 
 export interface HouseholdMember {
   id: string;
@@ -19,14 +14,14 @@ export interface HouseholdMember {
   initials: string;
   points: number;
   streak: number;
-  totalTasksCompleted: number; // Added the new backend field tracking
+  totalTasksCompleted: number;
   statusBadge: 'MVP' | 'On fire' | 'You' | 'No activity' | null;
 }
 
 @Component({
   selector: 'app-leaderboard',
   standalone: true,
-  imports: [CommonModule, RouterModule],
+  imports: [CommonModule],
   templateUrl: './leaderboard.html',
   styleUrls: ['./leaderboard.css'],
 })
@@ -35,7 +30,8 @@ export class LeaderboardComponent implements OnInit, OnDestroy {
   private cdr = inject(ChangeDetectorRef);
   private router = inject(Router);
   private auth = inject(Auth);
-  private http = inject(HttpClient);
+  private toastr = inject(ToastrService);
+  private leaderboardService = inject(LeaderboardService);
 
   isAdmin = false;
   isResetting = false;
@@ -47,30 +43,35 @@ export class LeaderboardComponent implements OnInit, OnDestroy {
   topStreakHolder = '';
   topStreakDays = 0;
 
-  currentUser: any = null;
-  currentUserPoints = 0;
-  currentUserName: string | null = null;
-  isProfileMenuOpen = false;
   householdAdminId = '';
 
   private unsubscribeHousehold: (() => void) | null = null;
   private unsubscribeMembers: (() => void) | null = null;
-  private pointsUnsubscribe: (() => void) | null = null;
   private authUnsubscribe: (() => void) | null = null;
+  private resetUnsubscribe: Subscription | null = null;
 
   ngOnInit(): void {
     this.authUnsubscribe = this.auth.onAuthStateChanged((user) => {
-      this.currentUser = user;
-
       if (!user) {
         this.router.navigate(['/login']);
         return;
       }
 
-      this.subscribeToUserPoints(user.uid);
       this.currentUid = user.uid;
       this.fetchLeaderboardData(user.uid);
       this.cdr.detectChanges();
+    });
+
+    this.resetUnsubscribe = this.leaderboardService.resetTriggered.subscribe(() => {
+      if (this.isAdmin && !this.isResetting) {
+        if (
+          !confirm(
+            'Are you absolutely sure? All member points will return to zero. This cannot be undone.',
+          )
+        )
+          return;
+        this.resetLeaderboard();
+      }
     });
   }
 
@@ -110,7 +111,13 @@ export class LeaderboardComponent implements OnInit, OnDestroy {
                   members.push(this.mapToHouseholdMember(data));
                 });
 
-                members.sort((a, b) => b.points - a.points);
+                members.sort((a, b) => {
+                  if (b.points !== a.points) return b.points - a.points;
+                  if (b.streak !== a.streak) return b.streak - a.streak;
+                  if (a.id === this.householdAdminId) return -1;
+                  if (b.id === this.householdAdminId) return 1;
+                  return 0;
+                });
 
                 members.forEach((member, index) => {
                   if (member.streak === 0) {
@@ -160,90 +167,25 @@ export class LeaderboardComponent implements OnInit, OnDestroy {
     );
   }
 
-  toggleProfileMenu() {
-    this.isProfileMenuOpen = !this.isProfileMenuOpen;
-  }
-
-  @HostListener('document:click', ['$event'])
-  onDocumentClick(event: MouseEvent) {
-    if (!this.isProfileMenuOpen) return;
-
-    const target = event.target as HTMLElement | null;
-    if (!target) return;
-
-    if (!target.closest('.profile-menu-container')) {
-      this.isProfileMenuOpen = false;
-      this.cdr.detectChanges();
-    }
-  }
-
-  private subscribeToUserPoints(uid: string) {
-    if (this.pointsUnsubscribe) {
-      this.pointsUnsubscribe();
-    }
-
-    const userDocRef = doc(this.firestore, `users/${uid}`);
-    this.pointsUnsubscribe = onSnapshot(userDocRef, (snapshot) => {
-      if (snapshot.exists()) {
-        const data = snapshot.data();
-        this.currentUserPoints = data['points'] ?? 0;
-        this.currentUserName = data['display_name'] || null;
-        this.cdr.detectChanges();
-      }
-    });
-  }
-
   resetLeaderboard(): void {
-    if (
-      !confirm(
-        'Are you sure you want to reset the leaderboard? This will wipe all points and chore counts to zero.',
-      )
-    ) {
-      return;
-    }
-
     this.isResetting = true;
 
-    this.http.post('/api/household/reset-leaderboard/', {}).subscribe({
+    this.leaderboardService.resetLeaderboard().subscribe({
       next: () => {
         this.isResetting = false;
-        this.showToast('Leaderboard reset successfully!', 'success');
+        this.toastr.success('Leaderboard reset successfully!', 'Reset complete', {
+          enableHtml: true,
+        });
+        this.fetchLeaderboardData(this.currentUid);
         this.cdr.detectChanges();
       },
       error: (err) => {
         console.error('Reset failed:', err);
         this.isResetting = false;
-        this.showToast('Reset failed. Check the console for details.', 'error');
+        this.toastr.error('Reset failed. Check the console for details.', 'Reset failed');
         this.cdr.detectChanges();
       },
     });
-  }
-
-  showToast(message: string, type: 'success' | 'error' = 'success'): void {
-    const toast = document.createElement('div');
-    toast.className = `toast toast-${type}`;
-    toast.textContent = message;
-    document.body.appendChild(toast);
-
-    setTimeout(() => {
-      toast.classList.add('show');
-    }, 10);
-
-    setTimeout(() => {
-      toast.classList.remove('show');
-      setTimeout(() => {
-        document.body.removeChild(toast);
-      }, 300);
-    }, 3000);
-  }
-
-  async logout() {
-    try {
-      await this.auth.signOut();
-      this.router.navigate(['/login']);
-    } catch (error) {
-      console.error('Error logging out:', error);
-    }
   }
 
   ngOnDestroy(): void {
@@ -253,11 +195,11 @@ export class LeaderboardComponent implements OnInit, OnDestroy {
     if (this.unsubscribeHousehold) {
       this.unsubscribeHousehold();
     }
-    if (this.pointsUnsubscribe) {
-      this.pointsUnsubscribe();
-    }
     if (this.authUnsubscribe) {
       this.authUnsubscribe();
+    }
+    if (this.resetUnsubscribe) {
+      this.resetUnsubscribe.unsubscribe();
     }
   }
 
