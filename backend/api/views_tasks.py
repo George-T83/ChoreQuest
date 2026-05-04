@@ -495,6 +495,16 @@ def update_task(request, task_id):
             clean_date = due_date_str.split('T')[0]
             due_date = datetime.strptime(clean_date, "%Y-%m-%d").replace(hour=12)
             due_date = due_date.replace(tzinfo=timezone.utc)
+
+            # Reject past dates
+            today_start = datetime.now(timezone.utc).replace(
+                hour=0, minute=0, second=0, microsecond=0
+            )
+            if due_date < today_start:
+                return Response(
+                    {'detail': 'Due date cannot be in the past. Please choose today or a future date.'},
+                    status=400
+                )
         except ValueError:
             return Response({'detail': 'Invalid due_date format. Use ISO 8601 (YYYY-MM-DD).'}, status=400)
     else:
@@ -519,6 +529,26 @@ def update_task(request, task_id):
         updates['was_late'] = False
         updates['points_deducted'] = 0
         updates['points_awarded'] = 0
+
+        if due_date:
+            try:
+                if isinstance(due_date, str):
+                    due_dt = datetime.fromisoformat(due_date.replace('Z', '+00:00'))
+                else:
+                    due_dt = due_date
+
+                if due_dt.tzinfo is None:
+                    due_dt = due_dt.replace(tzinfo=timezone.utc)
+
+                now = datetime.now(timezone.utc)
+                grace_end = due_dt + timedelta(hours=12)
+                
+                if now > grace_end:
+                    # Bump due date to tomorrow at noon UTC so they have a full day to complete it
+                    tomorrow = now + timedelta(days=1)
+                    updates['due_date'] = tomorrow.replace(hour=12, minute=0, second=0, microsecond=0)
+            except (ValueError, TypeError, AttributeError):
+                pass
 
     write_result = task_ref.update(updates)
 

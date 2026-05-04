@@ -12,10 +12,17 @@
       </div>
     }
 
-    <div class="modal-body">
+    <div class="modal-body" [class.locked-form]="isLocked">
       @if (isAdmin) {
         @if (errorMessage) {
           <div class="error-banner">{{ errorMessage }}</div>
+        }
+
+        @if (isLocked) {
+          <div class="locked-form-banner">
+            <span class="locked-icon">🔒</span>
+            <span>This task is completed and locked. You can reopen it or create a copy.</span>
+          </div>
         }
 
         <div class="form-group">
@@ -29,6 +36,7 @@
               placeholder="e.g. Take out trash"
               maxlength="100"
               class="material-field"
+              [readonly]="isLocked"
             />
           </mat-form-field>
           @if (showValidationErrors && getNormalizedTitle() === null) {
@@ -48,6 +56,7 @@
               placeholder="Add details or instructions for this chore..."
               rows="3"
               maxlength="500"
+              [readonly]="isLocked"
             ></textarea>
           </mat-form-field>
         </div>
@@ -61,6 +70,7 @@
               panelClass="custom-select-panel"
               placeholder="Select a member..."
               class="material-field"
+              [disabled]="isLocked"
             >
               @for (member of members; track member.id) {
                 <mat-option [value]="member.id">{{ member.display_name }}</mat-option>
@@ -79,16 +89,17 @@
               matInput
               id="task-due"
               [matDatepicker]="picker"
+              [min]="minDate"
               [(ngModel)]="due_date"
               readonly
-              (click)="picker.open()"
+              (click)="!isLocked && picker.open()"
               class="material-field"
             />
-            <mat-datepicker-toggle matSuffix [for]="picker"></mat-datepicker-toggle>
+            <mat-datepicker-toggle matSuffix [for]="picker" [disabled]="isLocked"></mat-datepicker-toggle>
             <mat-datepicker #picker></mat-datepicker>
           </mat-form-field>
           @if (showValidationErrors && getNormalizedDueDate() === null) {
-            <p class="field-error-text">Please select a valid due date.</p>
+            <p class="field-error-text">Please select a valid due date (today or later).</p>
           }
         </div>
 
@@ -99,6 +110,7 @@
             name="difficulty"
             [(ngModel)]="difficulty"
             aria-label="Task difficulty"
+            [disabled]="isLocked"
           >
             <mat-button-toggle class="easy-toggle" value="Easy">Easy</mat-button-toggle>
             <mat-button-toggle class="medium-toggle" value="Medium">Medium</mat-button-toggle>
@@ -125,6 +137,7 @@
               step="1"
               placeholder="e.g. 10"
               class="material-field"
+              [readonly]="isLocked"
             />
             <span matSuffix class="points-suffix">pts</span>
           </mat-form-field>
@@ -145,6 +158,7 @@
               [(ngModel)]="is_recurring"
               color="primary"
               aria-label="Toggle recurring task"
+              [disabled]="isLocked"
             />
           </div>
 
@@ -163,6 +177,7 @@
                   step="1"
                   placeholder="7"
                   class="material-field"
+                  [readonly]="isLocked"
                 />
               </mat-form-field>
               <span class="recurring-interval-text">day(s)</span>
@@ -246,7 +261,7 @@
           <button class="btn btn--danger" (click)="deleteTask()" [disabled]="isBusy">
             {{ isDeleting ? 'Deleting...' : 'Delete Task' }}
           </button>
-          @if (task.status === 'completed') {
+          @if (task.status === 'completed' && !isLocked) {
             <button class="btn btn--reopen" (click)="onReopen()" [disabled]="isBusy">
               {{ isReopening ? 'Reopening...' : '↩ Reopen Task' }}
             </button>
@@ -254,9 +269,18 @@
         </div>
         <div class="footer-actions">
           <button class="btn btn--outline" (click)="close()" [disabled]="isBusy">Cancel</button>
-          <button class="btn btn--primary" (click)="submit()" [disabled]="isBusy">
-            {{ isSubmitting ? 'Saving...' : 'Save Changes' }}
-          </button>
+          @if (isLocked) {
+            <button class="btn btn--reopen" (click)="onReopen()" [disabled]="isBusy">
+              {{ isReopening ? 'Reopening...' : '↩ Reopen Task' }}
+            </button>
+            <button class="btn btn--primary" (click)="onCopy()" [disabled]="isBusy">
+              Copy Task
+            </button>
+          } @else {
+            <button class="btn btn--primary" (click)="submit()" [disabled]="isBusy">
+              {{ isSubmitting ? 'Saving...' : 'Save Changes' }}
+            </button>
+          }
         </div>
       } @else {
         <button class="btn btn--outline" (click)="close()">Close</button>

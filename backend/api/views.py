@@ -1,4 +1,4 @@
-﻿import secrets
+import secrets
 import string
 import uuid
 from rest_framework.decorators import api_view, permission_classes
@@ -198,6 +198,55 @@ def get_my_household(request):
     return Response(hydrated, status=200)
 
 
+def _delete_household_and_subcollections(household_ref, db, member_uids):
+    # Remove household fields from all members
+    batch = db.batch()
+    for uid in member_uids:
+        batch.set(db.collection('users').document(uid), {
+            'household_id': None,
+            'household_name': None,
+            'householdName': None
+        }, merge=True)
+    batch.commit()
+
+    # Delete subcollections
+    for coll_name in ['tasks', 'memberships', 'history']:
+        docs = household_ref.collection(coll_name).stream()
+        b = db.batch()
+        count = 0
+        for doc in docs:
+            b.delete(doc.reference)
+            count += 1
+            if count >= 400:
+                b.commit()
+                b = db.batch()
+                count = 0
+        if count > 0:
+            b.commit()
+
+    # Delete the household document
+    household_ref.delete()
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def delete_household(request):
+    """
+    Admin-only. Completely deletes the household, its subcollections, and updates members.
+    """
+    uid = request.user.username
+    data, doc_ref = _get_user_household_doc(uid)
+    
+    if not data or not doc_ref:
+        return Response({'detail': 'Not in any household.'}, status=400)
+        
+    if data.get('admin_id') != uid:
+        return Response({'detail': 'Only the admin can delete the household.'}, status=403)
+        
+    member_uids = data.get('members', [])
+    _delete_household_and_subcollections(doc_ref, settings.FIREBASE_DB, member_uids)
+    
+    return Response({'detail': 'Household deleted successfully.'}, status=200)
+
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def leave_household(request):
@@ -217,16 +266,24 @@ def leave_household(request):
         return Response({'detail': 'Transfer admin rights before leaving.'}, status=400)
         
     if is_admin and member_count == 1:
-        doc_ref.delete()
+        _delete_household_and_subcollections(doc_ref, settings.FIREBASE_DB, data.get('members', []))
         return Response({'detail': 'Household dissolved.'}, status=200)
         
     admin_id = data.get('admin_id')
+    db = settings.FIREBASE_DB
     
     # Reassign the departing member's tasks to the admin
-    tasks = doc_ref.collection('tasks').where('assigned_to', '==', uid).stream()
+    tasks = doc_ref.collection('tasks').where(filter=firestore.FieldFilter('assigned_to', '==', uid)).stream()
     for task in tasks:
         if task.to_dict().get('status') != 'completed':
             task.reference.update({'assigned_to': admin_id})
+
+    # Clear user doc household fields
+    db.collection('users').document(uid).set({
+        'household_id': None,
+        'household_name': None,
+        'householdName': None
+    }, merge=True)
 
     doc_ref.update({
         'members': firestore.ArrayRemove([uid]),
@@ -237,6 +294,57 @@ def leave_household(request):
     
     return Response({'detail': 'You have left the household.'}, status=200)
 
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def remove_member(request):
+    """
+    Admin-only. Removes a member from the household and reassigns their tasks.
+    """
+    uid = request.user.username
+    data, doc_ref = _get_user_household_doc(uid)
+    
+    if not data or not doc_ref:
+        return Response({'detail': 'Not in any household.'}, status=400)
+        
+    if data.get('admin_id') != uid:
+        return Response({'detail': 'Only the admin can remove members.'}, status=403)
+        
+    member_id = request.data.get('member_id')
+    if not member_id:
+        return Response({'detail': 'No member_id provided.'}, status=400)
+        
+    if member_id == uid:
+        return Response({'detail': 'Cannot remove yourself. Use leave instead.'}, status=400)
+        
+    members = data.get('members', [])
+    if member_id not in members:
+        return Response({'detail': 'User is not a member of this household.'}, status=404)
+        
+    db = settings.FIREBASE_DB
+    admin_id = uid
+    
+    # Reassign tasks
+    tasks = doc_ref.collection('tasks').where(filter=firestore.FieldFilter('assigned_to', '==', member_id)).stream()
+    for task in tasks:
+        if task.to_dict().get('status') != 'completed':
+            task.reference.update({'assigned_to': admin_id})
+
+    # Clear user doc household fields
+    db.collection('users').document(member_id).set({
+        'household_id': None,
+        'household_name': None,
+        'householdName': None
+    }, merge=True)
+
+    doc_ref.update({
+        'members': firestore.ArrayRemove([member_id]),
+        'member_count': len(members) - 1,
+        'is_full': False
+    })
+    doc_ref.collection('memberships').document(member_id).delete()
+    
+    return Response({'detail': 'Member removed successfully.'}, status=200)
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
@@ -310,8 +418,6 @@ def reset_leaderboard(request):
             batch.set(db.collection('users').document(doc.id), {
                 'points': 0,
                 'total_tasks_completed': 0,
-                'streak': 0,
-                'last_task_completed_date': None,
             }, merge=True)
 
     # ── Reset household tasks: delete completed ones, clear awarded flags ─────

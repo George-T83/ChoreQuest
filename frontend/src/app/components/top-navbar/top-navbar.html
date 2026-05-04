@@ -43,6 +43,12 @@
       <span class="points-value">{{ currentUserPoints }}</span>
     </div>
 
+    <!-- Rank Badge -->
+    <div *ngIf="pageTitle === 'Dashboard' && currentUserRank !== null" class="rank-badge" title="Leaderboard Rank">
+      <span class="rank-icon">🏆</span>
+      <span class="rank-value">#{{ currentUserRank }}</span>
+    </div>
+
     <div class="profile-menu-container">
       <div class="avatar" (click)="toggleProfileMenu()" title="Profile Menu">
         {{
@@ -57,21 +63,6 @@
           <strong>{{
             currentUserName || currentUser?.displayName || currentUser?.email || 'My Profile'
           }}</strong>
-          <p class="dropdown-points">⭐ {{ currentUserPoints }} pts</p>
-
-          <p *ngIf="currentUserStreak > 0" class="dropdown-streak">
-            {{ streakDisplay }} task streak
-          </p>
-
-          <div *ngIf="currentUserBadges.length > 0" class="dropdown-badges">
-            <span
-              *ngFor="let badge of currentUserBadges"
-              class="dropdown-badge-icon"
-              [title]="badge.tooltip"
-            >
-              {{ badge.emoji }}
-            </span>
-          </div>
         </div>
         <hr class="dropdown-divider" />
         <ul class="dropdown-list">

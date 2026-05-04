@@ -132,6 +132,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   isProfileMenuOpen = false;
   tasksLoadError = '';
 
+  taskTemplate: Partial<Task> | null = null;
   taskToEdit: Task | null = null;
   currentHouseholdId: string = '';
 
@@ -179,7 +180,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     navigator.clipboard
       .writeText(code)
       .then(() => {
-        this.toastr.success(`Invite code ${code} copied to clipboard!`, '📋 Copied');
+        this.toastr.info('Invite code copied to clipboard!', 'Copied');
       })
       .catch((err) => {
         console.error('Failed to copy text: ', err);
@@ -212,11 +213,13 @@ export class DashboardComponent implements OnInit, OnDestroy {
     }).length;
   }
 
-  openCreateTask() {
+  openCreateTask(template?: Partial<Task>) {
+    this.taskTemplate = template || null;
     this.isCreateTaskOpen = true;
   }
   closeCreateTask() {
     this.isCreateTaskOpen = false;
+    this.taskTemplate = null;
   }
   onTaskCreated() {
     this.reloadHouseholdTasks();
@@ -235,6 +238,11 @@ export class DashboardComponent implements OnInit, OnDestroy {
   onTaskUpdated() {
     this.reloadHouseholdTasks();
     this.closeEditTask();
+  }
+
+  onTaskCopied(template: Partial<Task>) {
+    this.closeEditTask();
+    this.openCreateTask(template);
   }
 
   completeTask(taskId: string) {

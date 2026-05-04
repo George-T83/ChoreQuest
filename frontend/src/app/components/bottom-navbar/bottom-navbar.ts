@@ -11,6 +11,7 @@ import { RouterModule } from '@angular/router';
 })
 export class BottomNavbarComponent {
   @Input() currentPage: string = 'dashboard';
+  @Input() inHousehold: boolean = false;
 
   isActive(page: string): boolean {
     return this.currentPage === page;

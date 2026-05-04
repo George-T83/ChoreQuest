@@ -176,6 +176,7 @@
     @if (household$ | async; as household) {
       <app-create-task
         [members]="getMembers(household)"
+        [template]="taskTemplate"
         (closed)="closeCreateTask()"
         (taskCreated)="onTaskCreated()"
       />
@@ -190,6 +191,7 @@
         [isAdmin]="isAdmin(household)"
         (closed)="closeEditTask()"
         (taskUpdated)="onTaskUpdated()"
+        (taskCopied)="onTaskCopied($event)"
       />
     }
   }
