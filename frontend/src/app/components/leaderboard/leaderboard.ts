@@ -7,6 +7,7 @@ import {
   HostListener,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { HttpClient } from '@angular/common/http';
 import { Firestore, collection, query, onSnapshot, where, doc } from '@angular/fire/firestore';
 import { Router, RouterModule } from '@angular/router';
 import { Auth } from '@angular/fire/auth';
@@ -34,8 +35,10 @@ export class LeaderboardComponent implements OnInit, OnDestroy {
   private cdr = inject(ChangeDetectorRef);
   private router = inject(Router);
   private auth = inject(Auth);
+  private http = inject(HttpClient);
 
   isAdmin = false;
+  isResetting = false;
   currentUid = '';
   allMembers: HouseholdMember[] = [];
   topThree: HouseholdMember[] = [];
@@ -48,6 +51,7 @@ export class LeaderboardComponent implements OnInit, OnDestroy {
   currentUserPoints = 0;
   currentUserName: string | null = null;
   isProfileMenuOpen = false;
+  householdAdminId = '';
 
   private unsubscribeHousehold: (() => void) | null = null;
   private unsubscribeMembers: (() => void) | null = null;
@@ -84,6 +88,8 @@ export class LeaderboardComponent implements OnInit, OnDestroy {
         if (!hSnap.empty) {
           const householdData = hSnap.docs[0].data();
           const memberUids = householdData['members'] || [];
+          this.householdAdminId = householdData['admin_id'] || '';
+          this.isAdmin = this.currentUid === this.householdAdminId;
 
           if (memberUids.length > 0) {
             const usersRef = collection(this.firestore, 'users');
@@ -185,6 +191,50 @@ export class LeaderboardComponent implements OnInit, OnDestroy {
         this.cdr.detectChanges();
       }
     });
+  }
+
+  resetLeaderboard(): void {
+    if (
+      !confirm(
+        'Are you sure you want to reset the leaderboard? This will wipe all points and chore counts to zero.',
+      )
+    ) {
+      return;
+    }
+
+    this.isResetting = true;
+
+    this.http.post('/api/household/reset-leaderboard/', {}).subscribe({
+      next: () => {
+        this.isResetting = false;
+        this.showToast('Leaderboard reset successfully!', 'success');
+        this.cdr.detectChanges();
+      },
+      error: (err) => {
+        console.error('Reset failed:', err);
+        this.isResetting = false;
+        this.showToast('Reset failed. Check the console for details.', 'error');
+        this.cdr.detectChanges();
+      },
+    });
+  }
+
+  showToast(message: string, type: 'success' | 'error' = 'success'): void {
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+    toast.textContent = message;
+    document.body.appendChild(toast);
+
+    setTimeout(() => {
+      toast.classList.add('show');
+    }, 10);
+
+    setTimeout(() => {
+      toast.classList.remove('show');
+      setTimeout(() => {
+        document.body.removeChild(toast);
+      }, 300);
+    }, 3000);
   }
 
   async logout() {
