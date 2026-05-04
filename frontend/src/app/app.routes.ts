@@ -1,7 +1,8 @@
 import { Routes } from '@angular/router';
 import { authGuard } from './services/auth.guard';
-import { ProfileComponent } from './components/profile/profile'; // <-- 1. Import your new component
+import { ProfileComponent } from './components/profile/profile';
 import { HouseholdSettingsComponent } from './components/household-settings/household-settings';
+import { LayoutComponent } from './components/layout/layout';
 
 export const routes: Routes = [
   {
@@ -13,45 +14,45 @@ export const routes: Routes = [
     loadComponent: () => import('./components/register/register').then((m) => m.RegisterComponent),
   },
   {
-    path: 'dashboard',
+    path: '',
+    component: LayoutComponent,
     canActivate: [authGuard],
-    loadComponent: () =>
-      import('./components/dashboard/dashboard').then((m) => m.DashboardComponent),
-  },
-  // Flattened Household Routes
-  {
-    path: 'household/create',
-    canActivate: [authGuard],
-    loadComponent: () =>
-      import('./components/household/create-household/create-household').then(
-        (m) => m.CreateHouseholdComponent,
-      ),
-  },
-  {
-    path: 'household/join',
-    canActivate: [authGuard],
-    loadComponent: () =>
-      import('./components/household/join-household/join-household').then(
-        (m) => m.JoinHouseholdComponent,
-      ),
-  },
-  {
-    path: 'household-settings',
-    component: HouseholdSettingsComponent,
-    canActivate: [authGuard],
-  },
-  {
-    path: 'profile',
-    component: ProfileComponent,
+    children: [
+      { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
+      {
+        path: 'dashboard',
+        loadComponent: () =>
+          import('./components/dashboard/dashboard').then((m) => m.DashboardComponent),
+      },
+      {
+        path: 'leaderboard',
+        loadComponent: () =>
+          import('./components/leaderboard/leaderboard').then((m) => m.LeaderboardComponent),
+      },
+      {
+        path: 'household-settings',
+        component: HouseholdSettingsComponent,
+      },
+      {
+        path: 'profile',
+        component: ProfileComponent,
+      },
+      {
+        path: 'household/create',
+        loadComponent: () =>
+          import('./components/household/create-household/create-household').then(
+            (m) => m.CreateHouseholdComponent,
+          ),
+      },
+      {
+        path: 'household/join',
+        loadComponent: () =>
+          import('./components/household/join-household/join-household').then(
+            (m) => m.JoinHouseholdComponent,
+          ),
+      },
+    ],
   },
 
-  {
-    path: 'leaderboard',
-    canActivate: [authGuard],
-    loadComponent: () =>
-      import('./components/leaderboard/leaderboard').then((m) => m.LeaderboardComponent),
-  },
-
-  { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
-  { path: '**', redirectTo: 'dashboard' }, // Catch-all for stray routes
+  { path: '**', redirectTo: '/dashboard' },
 ];

@@ -36,6 +36,7 @@ def create_task(request):
         return Response({'detail': 'Only the household admin can create tasks.'}, status=403)
 
     title = request.data.get('title', '').strip()
+    description = request.data.get('description', '').strip()
     assigned_to = request.data.get('assigned_to', '').strip()
     due_date_str = request.data.get('due_date', '').strip()
     difficulty = request.data.get('difficulty', 'Easy').strip()
@@ -97,6 +98,7 @@ def create_task(request):
     task_data = {
         'id': task_id,
         'title': title,
+        'description': description,
         'assigned_to': assigned_to,
         'assigned_to_name': assigned_to_name,
         'created_by': uid,
@@ -138,6 +140,8 @@ def get_household_tasks(request):
     for doc in task_docs:
         task = doc.to_dict()
         # Backwards compatibility for tasks created before these fields existed
+        if 'description' not in task:
+            task['description'] = ''
         if 'points' not in task:
             task['points'] = 0
         if 'is_recurring' not in task:
@@ -401,6 +405,7 @@ def update_task(request, task_id):
 
     current_task_data = task_doc.to_dict()
     title = request.data.get('title', current_task_data.get('title', '')).strip()
+    description = request.data.get('description', current_task_data.get('description', '')).strip()
     assigned_to = request.data.get('assigned_to', current_task_data.get('assigned_to', '')).strip()
     due_date_str = request.data.get('due_date', '')
     difficulty = request.data.get('difficulty', current_task_data.get('difficulty')).strip()
@@ -454,6 +459,7 @@ def update_task(request, task_id):
 
     updates = {
         'title': title,
+        'description': description,
         'assigned_to': assigned_to,
         'assigned_to_name': assigned_to_name,
         'due_date': due_date,
@@ -469,7 +475,7 @@ def update_task(request, task_id):
         updates['completed_at'] = None
         updates['was_late'] = False
         updates['points_deducted'] = 0
-        updates['points_awarded'] = False
+        updates['points_awarded'] = 0
 
     write_result = task_ref.update(updates)
 
