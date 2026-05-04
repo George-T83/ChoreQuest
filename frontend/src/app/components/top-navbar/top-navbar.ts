@@ -25,8 +25,6 @@ import { Subscription } from 'rxjs';
 })
 export class TopNavbarComponent implements OnInit, OnDestroy {
   @Input() pageTitle = 'Dashboard';
-  @Input() showResetButton = false;
-  @Output() resetClicked = new EventEmitter<void>();
   @Output() logoutClicked = new EventEmitter<void>();
 
   private auth = inject(Auth);
@@ -38,7 +36,6 @@ export class TopNavbarComponent implements OnInit, OnDestroy {
   currentUserPoints = 0;
   currentUserName: string | null = null;
   isProfileMenuOpen = false;
-  isResetting = false;
 
   tasksAssignedCount = 0;
   overdueCount = 0;
@@ -115,10 +112,6 @@ export class TopNavbarComponent implements OnInit, OnDestroy {
       this.isProfileMenuOpen = false;
       this.cdr.detectChanges();
     }
-  }
-
-  onReset(): void {
-    this.resetClicked.emit();
   }
 
   onLogout(): void {

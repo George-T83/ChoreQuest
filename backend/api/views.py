@@ -1,4 +1,4 @@
-import secrets
+﻿import secrets
 import string
 import uuid
 from rest_framework.decorators import api_view, permission_classes
@@ -74,6 +74,7 @@ def _hydrate_household(data, household_ref):
 
     data['members'] = hydrated_members
     return data
+
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -237,35 +238,106 @@ def leave_household(request):
     return Response({'detail': 'You have left the household.'}, status=200)
 
 
-# --- NEW ENDPOINT ADDED BELOW ---
-
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def reset_leaderboard(request):
     """
-    Admin-only. Resets points and total_tasks_completed to 0 for all members in the household.
+    Admin-only. Saves a cycle snapshot to history, then zeroes all member points and tasks completed.
+    Gracefully handles zero-point resets without crashing.
     """
     uid = request.user.username
-    db = settings.FIREBASE_DB
+    db  = settings.FIREBASE_DB
 
-    data, doc_ref = _get_user_household_doc(uid)
-    
-    if not data or not doc_ref:
-        return Response({'detail': 'Not in any household.'}, status=400)
-        
+    data, household_ref = _get_user_household_doc(uid)
+    if not data:
+        return Response({'detail': 'You are not in a household.'}, status=400)
+
     if data.get('admin_id') != uid:
         return Response({'detail': 'Only the household admin can reset the leaderboard.'}, status=403)
-        
-    uids = data.get('members', [])
-    
-    if uids:
-        batch = db.batch()
-        for member_uid in uids:
-            user_ref = db.collection('users').document(member_uid)
-            batch.update(user_ref, {
-                'points': 0,
-                'total_tasks_completed': 0
+
+    member_uids = data.get('members', [])
+    if not member_uids:
+        return Response({'detail': 'No members found.'}, status=400)
+
+    # ── Fetch all member point totals ──────────────────────────────────────────
+    user_refs  = [db.collection('users').document(m) for m in member_uids]
+    user_docs  = list(db.get_all(user_refs))
+
+    standings = []
+    for doc in user_docs:
+        if doc.exists:
+            d = doc.to_dict()
+            standings.append({
+                'uid':    doc.id,
+                'name':   d.get('display_name', 'Unknown'),
+                'points': d.get('points', 0) or 0,
+                'tasks':  d.get('total_tasks_completed', 0) or 0,
             })
+
+    total_points = sum(s['points'] for s in standings)
+    total_tasks  = sum(s['tasks'] for s in standings)
+    cycle_saved  = total_points > 0 or total_tasks > 0
+
+    # ── Save history first as a standalone write so it can never be lost ──────
+    if cycle_saved:
+        standings.sort(key=lambda s: s['points'], reverse=True)
+        winner = standings[0]
+        history_id  = str(uuid.uuid4())
+        history_ref = household_ref.collection('history').document(history_id)
+        try:
+            history_ref.set({
+                'cycle_end_date': firestore.SERVER_TIMESTAMP,
+                'winner_uid':     winner['uid'],
+                'winner_name':    winner['name'],
+                'winner_points':  winner['points'],
+                'standings':      [
+                    {'uid': s['uid'], 'name': s['name'], 'points': s['points']}
+                    for s in standings
+                ],
+            })
+        except Exception:
+            return Response({'detail': 'Failed to save cycle history.'}, status=500)
+        winner_name   = winner['name']
+        winner_points = winner['points']
+    else:
+        winner_name   = "Nobody"
+        winner_points = 0
+
+    # ── Reset every per-cycle field on each user ──────────────────────────────
+    batch = db.batch()
+    for doc in user_docs:
+        if doc.exists:
+            batch.set(db.collection('users').document(doc.id), {
+                'points': 0,
+                'total_tasks_completed': 0,
+                'streak': 0,
+                'last_task_completed_date': None,
+            }, merge=True)
+
+    # ── Reset household tasks: delete completed ones, clear awarded flags ─────
+    try:
+        for task_doc in household_ref.collection('tasks').stream():
+            t = task_doc.to_dict() or {}
+            if t.get('status') == 'completed' and not t.get('is_recurring', False):
+                batch.delete(task_doc.reference)
+            else:
+                batch.set(task_doc.reference, {
+                    'points_awarded': False,
+                    'completed_at':   None,
+                    'was_late':       False,
+                    'points_deducted': 0,
+                }, merge=True)
+    except Exception:
+        return Response({'detail': 'Failed to read household tasks.'}, status=500)
+
+    try:
         batch.commit()
-        
-    return Response({'detail': 'Leaderboard reset successfully.'}, status=200)
+    except Exception:
+        return Response({'detail': 'Failed to reset leaderboard due to a database error.'}, status=500)
+
+    return Response({
+        'detail':        'Leaderboard reset successfully.',
+        'winner_name':   winner_name,
+        'winner_points': winner_points,
+        'cycle_saved':   cycle_saved,
+    }, status=200)

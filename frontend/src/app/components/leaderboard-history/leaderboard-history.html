@@ -1,0 +1,48 @@
+<div class="modal-overlay" (click)="close()">
+  <div class="modal-card" (click)="$event.stopPropagation()">
+
+    <div class="modal-header">
+      <h2 class="modal-title">🏆 Hall of Fame</h2>
+      <button class="modal-close" (click)="close()" aria-label="Close">✕</button>
+    </div>
+
+    <div class="modal-body">
+      @if (loading) {
+      <div class="modal-loading">
+        <div class="spinner"></div>
+        <p>Loading history...</p>
+      </div>
+      } @else if (errorMsg) {
+      <div class="modal-error">{{ errorMsg }}</div>
+      } @else if (history.length === 0) {
+      <div class="modal-empty">
+        <p class="modal-empty__icon">🏅</p>
+        <p class="modal-empty__text">No past cycles yet!</p>
+        <p class="modal-empty__sub">Keep completing chores to establish the first champion.</p>
+      </div>
+      } @else {
+      <ul class="history-list">
+        @for (cycle of history; track cycle.id) {
+        <li class="history-item">
+          <div class="history-item__date">{{ formatDate(cycle.cycle_end_date) }}</div>
+          <ol class="standings-list">
+            @for (entry of (cycle.standings || []).slice(0, 3); track entry.uid; let i = $index) {
+            <li class="standings-row" [attr.data-rank]="i + 1">
+              <span class="medal">{{ medalFor(i) }}</span>
+              <span class="standings-name">{{ entry.name }}</span>
+              <span class="standings-points">{{ entry.points }} pts</span>
+            </li>
+            }
+          </ol>
+        </li>
+        }
+      </ul>
+      }
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn-close-modal" (click)="close()">Close</button>
+    </div>
+
+  </div>
+</div>
