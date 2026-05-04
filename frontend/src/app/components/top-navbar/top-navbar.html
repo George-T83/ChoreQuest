@@ -1,0 +1,57 @@
+<header class="app-header">
+  <div class="header-left">
+    <h1 class="logo-text">ChoreQuest</h1>
+  </div>
+  <div class="header-center">
+    <h2 *ngIf="pageTitle !== 'Dashboard'" class="page-title">{{ pageTitle }}</h2>
+    <div *ngIf="pageTitle === 'Dashboard'" class="header-badges">
+      <span *ngIf="tasksAssignedCount > 0" class="pill pill--success">
+        <span class="pill-icon">✅</span>
+        <span class="pill-text">{{ tasksAssignedCount }} tasks assigned to you</span>
+      </span>
+      <span *ngIf="overdueCount > 0" class="pill pill--warning">
+        <span class="pill-icon">⚠️</span>
+        <span class="pill-text">{{ overdueCount }} overdue</span>
+      </span>
+    </div>
+  </div>
+  <div class="header-right">
+    <button *ngIf="showResetButton" class="reset-btn" (click)="onReset()" [disabled]="isResetting">
+      {{ isResetting ? 'Resetting...' : 'Reset' }}
+    </button>
+    <div class="points-counter" title="Your total points">
+      <span class="points-star">⭐</span>
+      <span class="points-value">{{ currentUserPoints }}</span>
+    </div>
+    <div class="profile-menu-container">
+      <div class="avatar" (click)="toggleProfileMenu()" title="Profile Menu">
+        {{
+          (currentUserName || currentUser?.displayName || currentUser?.email || '?')
+            .charAt(0)
+            .toUpperCase()
+        }}
+      </div>
+      <div *ngIf="isProfileMenuOpen" class="profile-dropdown card">
+        <div class="dropdown-header">
+          <strong>{{
+            currentUserName || currentUser?.displayName || currentUser?.email || 'My Profile'
+          }}</strong>
+          <p class="dropdown-points">⭐ {{ currentUserPoints }} pts</p>
+        </div>
+        <hr class="dropdown-divider" />
+        <ul class="dropdown-list">
+          <li><a routerLink="/profile" (click)="isProfileMenuOpen = false">Profile Settings</a></li>
+          <li>
+            <a routerLink="/household-settings" (click)="isProfileMenuOpen = false"
+              >Household Settings</a
+            >
+          </li>
+        </ul>
+        <hr class="dropdown-divider" />
+        <ul class="dropdown-list">
+          <li><a class="text-danger" (click)="onLogout()">Log out</a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</header>
