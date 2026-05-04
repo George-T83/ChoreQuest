@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TaskService } from '../../services/task';
 import { HouseholdMember } from '../../models/household';
-import { CreateTaskPayload } from '../../models/task';
+import { CreateTaskPayload, Task } from '../../models/task';
 import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatInputModule } from '@angular/material/input';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -33,10 +33,12 @@ export class CreateTaskComponent implements OnInit {
   private taskService = inject(TaskService);
 
   @Input() members: HouseholdMember[] = [];
+  @Input() template: Partial<Task> | null = null;
   @Output() closed = new EventEmitter<void>();
   @Output() taskCreated = new EventEmitter<void>();
 
   title = '';
+  description = '';
   assigned_to: string | null = '';
   due_date: string | Date | null = '';
   difficulty: 'Easy' | 'Medium' | 'Hard' | null = 'Easy';
@@ -57,6 +59,18 @@ export class CreateTaskComponent implements OnInit {
 
   ngOnInit() {
     this.due_date = new Date();
+    if (this.template) {
+      if (this.template.title) this.title = this.template.title;
+      if (this.template.description) this.description = this.template.description;
+      if (this.template.difficulty) this.difficulty = this.template.difficulty as any;
+      if (this.template.points) this.points = this.template.points;
+      if (this.template.assigned_to) {
+        const memberExists = this.members.some((m) => m.id === this.template!.assigned_to);
+        if (memberExists) {
+          this.assigned_to = this.template.assigned_to;
+        }
+      }
+    }
   }
 
   getLocalDateString(date: Date): string {
@@ -156,6 +170,7 @@ export class CreateTaskComponent implements OnInit {
 
     const payload: CreateTaskPayload = {
       title: this.getNormalizedTitle()!,
+      description: this.description.trim() || undefined,
       assigned_to: this.getNormalizedAssignedTo()!,
       due_date: this.getNormalizedDueDate()!,
       difficulty: this.getNormalizedDifficulty()!,

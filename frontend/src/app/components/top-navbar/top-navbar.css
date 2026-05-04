@@ -95,6 +95,35 @@
   text-align: center;
 }
 
+.rank-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 1rem;
+  padding: 0.25rem 0.65rem;
+  cursor: default;
+  transition: background 0.2s;
+}
+
+.rank-badge:hover {
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.rank-icon {
+  font-size: 0.8rem;
+  line-height: 1;
+}
+
+.rank-value {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: white;
+  min-width: 16px;
+  text-align: center;
+}
+
 .avatar {
   background: var(--primary);
   width: 32px;

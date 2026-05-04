@@ -26,8 +26,13 @@ export class LayoutComponent implements OnInit {
   pageTitle = 'Dashboard';
   currentPage: string = 'dashboard';
   showResetButton = false;
+  inHousehold = false;
 
   ngOnInit(): void {
+    this.householdService.household$.subscribe((hh) => {
+      this.inHousehold = !!hh;
+      this.cdr.detectChanges();
+    });
     this.auth.onAuthStateChanged((user) => {
       if (!user) {
         this.router.navigate(['/login']);

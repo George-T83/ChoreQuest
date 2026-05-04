@@ -12,7 +12,7 @@ import {
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { Auth } from '@angular/fire/auth';
-import { Firestore, doc, onSnapshot } from '@angular/fire/firestore';
+import { Firestore, doc, onSnapshot, collection, query, where } from '@angular/fire/firestore';
 import { TaskService } from '../../services/task';
 import { Subscription } from 'rxjs';
 import { Badge, computeBadges, formatStreak } from '../../utils/badge';
@@ -42,9 +42,12 @@ export class TopNavbarComponent implements OnInit, OnDestroy {
 
   tasksAssignedCount = 0;
   overdueCount = 0;
+  currentUserRank: number | null = null;
 
   private pointsUnsubscribe: (() => void) | null = null;
   private tasksSub: Subscription | null = null;
+  private unsubscribeHousehold: (() => void) | null = null;
+  private unsubscribeMembers: (() => void) | null = null;
 
   get streakDisplay(): string {
     return formatStreak(this.currentUserStreak);
@@ -55,6 +58,7 @@ export class TopNavbarComponent implements OnInit, OnDestroy {
       this.currentUser = user;
       if (user) {
         this.subscribeToUserData(user.uid);
+        this.subscribeToLeaderboardRank(user.uid);
         // Run overdue streak check for all household members silently on load
         this.taskService.checkOverdueStreaks().subscribe({
           error: (err) => console.warn('Overdue streak check failed:', err),
@@ -111,6 +115,59 @@ export class TopNavbarComponent implements OnInit, OnDestroy {
     });
   }
 
+  private subscribeToLeaderboardRank(uid: string): void {
+    if (this.unsubscribeHousehold) {
+      this.unsubscribeHousehold();
+    }
+
+    const householdsRef = collection(this.firestore, 'households');
+    const householdQuery = query(householdsRef, where('members', 'array-contains', uid));
+
+    this.unsubscribeHousehold = onSnapshot(householdQuery, (hSnap) => {
+      if (!hSnap.empty) {
+        const householdData = hSnap.docs[0].data();
+        const memberUids = householdData['members'] || [];
+        const adminId = householdData['admin_id'] || '';
+
+        if (memberUids.length > 0) {
+          const usersRef = collection(this.firestore, 'users');
+          const usersQuery = query(usersRef, where('uid', 'in', memberUids));
+
+          if (this.unsubscribeMembers) {
+            this.unsubscribeMembers();
+          }
+
+          this.unsubscribeMembers = onSnapshot(usersQuery, (uSnap) => {
+            const members: any[] = [];
+            uSnap.forEach((docSnap) => {
+              members.push({
+                uid: docSnap.data()['uid'],
+                points: docSnap.data()['points'] || 0,
+                streak: docSnap.data()['streak'] || 0,
+                isAdmin: docSnap.data()['uid'] === adminId
+              });
+            });
+
+            members.sort((a, b) => {
+              if (b.points !== a.points) return b.points - a.points;
+              if (b.streak !== a.streak) return b.streak - a.streak;
+              if (a.isAdmin) return -1;
+              if (b.isAdmin) return 1;
+              return 0;
+            });
+
+            const rankIndex = members.findIndex(m => m.uid === uid);
+            this.currentUserRank = rankIndex !== -1 ? rankIndex + 1 : null;
+            this.cdr.detectChanges();
+          });
+        }
+      } else {
+        this.currentUserRank = null;
+        this.cdr.detectChanges();
+      }
+    });
+  }
+
   toggleProfileMenu(): void {
     this.isProfileMenuOpen = !this.isProfileMenuOpen;
   }
@@ -136,6 +193,12 @@ export class TopNavbarComponent implements OnInit, OnDestroy {
     }
     if (this.tasksSub) {
       this.tasksSub.unsubscribe();
+    }
+    if (this.unsubscribeHousehold) {
+      this.unsubscribeHousehold();
+    }
+    if (this.unsubscribeMembers) {
+      this.unsubscribeMembers();
     }
   }
 }
