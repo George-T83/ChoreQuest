@@ -1,10 +1,10 @@
 import { Component, OnInit, OnDestroy, ChangeDetectorRef, inject } from '@angular/core';
-import { Subscription } from 'rxjs';
 import { CommonModule } from '@angular/common';
 import { Firestore, collection, query, onSnapshot, where } from '@angular/fire/firestore';
 import { Router } from '@angular/router';
 import { Auth } from '@angular/fire/auth';
 import { ToastrService } from 'ngx-toastr';
+import { LeaderboardHistoryComponent } from '../leaderboard-history/leaderboard-history';
 import { LeaderboardService } from '../../services/leaderboard';
 
 export interface HouseholdMember {
@@ -21,7 +21,7 @@ export interface HouseholdMember {
 @Component({
   selector: 'app-leaderboard',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, LeaderboardHistoryComponent],
   templateUrl: './leaderboard.html',
   styleUrls: ['./leaderboard.css'],
 })
@@ -35,6 +35,9 @@ export class LeaderboardComponent implements OnInit, OnDestroy {
 
   isAdmin = false;
   isResetting = false;
+  isHistoryModalOpen = false;
+  currentHouseholdId = '';
+
   currentUid = '';
   allMembers: HouseholdMember[] = [];
   topThree: HouseholdMember[] = [];
@@ -48,7 +51,42 @@ export class LeaderboardComponent implements OnInit, OnDestroy {
   private unsubscribeHousehold: (() => void) | null = null;
   private unsubscribeMembers: (() => void) | null = null;
   private authUnsubscribe: (() => void) | null = null;
-  private resetUnsubscribe: Subscription | null = null;
+
+  onViewHistory() {
+    this.isHistoryModalOpen = true;
+  }
+
+  closeHistoryModal() {
+    this.isHistoryModalOpen = false;
+  }
+
+  onResetClicked(): void {
+    if (!confirm('Are you sure you want to reset all points? This cannot be undone.')) return;
+
+    this.isResetting = true;
+
+    this.leaderboardService.resetLeaderboard().subscribe({
+      next: (response: any) => {
+        this.isResetting = false;
+
+        if (response.cycle_saved) {
+          this.toastr.success(
+            `${response.winner_name} wins this cycle with ${response.winner_points} pts!`,
+            'Leaderboard Reset! 🏆',
+          );
+        } else {
+          this.toastr.success('Points and tasks have been reset to zero.', 'Reset Complete');
+        }
+
+        this.cdr.detectChanges();
+      },
+      error: (err: any) => {
+        this.isResetting = false;
+        this.toastr.error(err.error?.detail ?? 'Failed to reset leaderboard.', 'Error');
+        this.cdr.detectChanges();
+      },
+    });
+  }
 
   ngOnInit(): void {
     this.authUnsubscribe = this.auth.onAuthStateChanged((user) => {
@@ -60,18 +98,6 @@ export class LeaderboardComponent implements OnInit, OnDestroy {
       this.currentUid = user.uid;
       this.fetchLeaderboardData(user.uid);
       this.cdr.detectChanges();
-    });
-
-    this.resetUnsubscribe = this.leaderboardService.resetTriggered.subscribe(() => {
-      if (this.isAdmin && !this.isResetting) {
-        if (
-          !confirm(
-            'Are you absolutely sure? All member points will return to zero. This cannot be undone.',
-          )
-        )
-          return;
-        this.resetLeaderboard();
-      }
     });
   }
 
@@ -88,6 +114,7 @@ export class LeaderboardComponent implements OnInit, OnDestroy {
       (hSnap) => {
         if (!hSnap.empty) {
           const householdData = hSnap.docs[0].data();
+          this.currentHouseholdId = hSnap.docs[0].id;
           const memberUids = householdData['members'] || [];
           this.householdAdminId = householdData['admin_id'] || '';
           this.isAdmin = this.currentUid === this.householdAdminId;
@@ -167,27 +194,6 @@ export class LeaderboardComponent implements OnInit, OnDestroy {
     );
   }
 
-  resetLeaderboard(): void {
-    this.isResetting = true;
-
-    this.leaderboardService.resetLeaderboard().subscribe({
-      next: () => {
-        this.isResetting = false;
-        this.toastr.success('Leaderboard reset successfully!', 'Reset complete', {
-          enableHtml: true,
-        });
-        this.fetchLeaderboardData(this.currentUid);
-        this.cdr.detectChanges();
-      },
-      error: (err) => {
-        console.error('Reset failed:', err);
-        this.isResetting = false;
-        this.toastr.error('Reset failed. Check the console for details.', 'Reset failed');
-        this.cdr.detectChanges();
-      },
-    });
-  }
-
   ngOnDestroy(): void {
     if (this.unsubscribeMembers) {
       this.unsubscribeMembers();
@@ -197,9 +203,6 @@ export class LeaderboardComponent implements OnInit, OnDestroy {
     }
     if (this.authUnsubscribe) {
       this.authUnsubscribe();
-    }
-    if (this.resetUnsubscribe) {
-      this.resetUnsubscribe.unsubscribe();
     }
   }
 

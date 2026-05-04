@@ -1,6 +1,14 @@
 <section class="leaderboard-section">
+  <div class="leaderboard-toolbar">
+    <button class="btn-history" (click)="onViewHistory()">
+      <span class="icon">🕒</span> View History
+    </button>
+    <button *ngIf="isAdmin" class="btn-reset" (click)="onResetClicked()" [disabled]="isResetting">
+      <span class="icon">🔄</span> {{ isResetting ? 'Resetting...' : 'Reset Cycle' }}
+    </button>
+  </div>
+
   <div class="leaderboard-container">
-    <!-- For 3+ members: normal left-to-right (2, 1, 3) -->
     <div class="podium-wrapper" *ngIf="topThree.length > 2">
       <div class="podium-pillar rank-2" *ngIf="topThree.length > 1">
         <div class="avatar">{{ topThree[1].initials }}</div>
@@ -25,7 +33,6 @@
       </div>
     </div>
 
-    <!-- For 2 or fewer members: 1 comes first -->
     <div
       class="podium-wrapper podium-wrapper--compact"
       *ngIf="topThree.length > 0 && topThree.length <= 2"
@@ -90,4 +97,8 @@
       </div>
     </div>
   </div>
+
+  @if (isHistoryModalOpen && currentHouseholdId) {
+    <app-leaderboard-history [householdId]="currentHouseholdId" (closed)="closeHistoryModal()" />
+  }
 </section>

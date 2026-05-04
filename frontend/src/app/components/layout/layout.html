@@ -1,10 +1,6 @@
 <div class="app-container">
-  <app-top-navbar
-    [pageTitle]="pageTitle"
-    [showResetButton]="showResetButton && currentPage === 'leaderboard'"
-    (resetClicked)="onReset()"
-    (logoutClicked)="onLogout()"
-  ></app-top-navbar>
+  <app-top-navbar [pageTitle]="pageTitle" (logoutClicked)="onLogout()"></app-top-navbar>
+
   <main class="main-content">
     <router-outlet></router-outlet>
   </main>
