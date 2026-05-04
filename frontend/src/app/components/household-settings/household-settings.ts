@@ -114,14 +114,18 @@ export class HouseholdSettingsComponent implements OnInit, OnDestroy {
         }
 
         try {
-          const hhRef = doc(this.firestore, `households/${this.household.id}`);
-          await deleteDoc(hhRef);
-          this.householdService.clearHousehold();
-          this.taskService.clearTasks();
-          this.toastr.success('Household dissolved and you have left successfully.', 'Success');
-          this.router.navigate(['/dashboard']);
+          this.householdService.deleteHousehold().subscribe({
+            next: () => {
+              this.taskService.clearTasks();
+              this.toastr.success('Household dissolved and you have left successfully.', 'Success');
+              this.router.navigate(['/dashboard']);
+            },
+            error: (err: any) => {
+              this.toastr.error('Error dissolving household: ' + err.message, 'Error');
+            }
+          });
         } catch (error: any) {
-          this.toastr.error('Error leaving household: ' + error.message, 'Error');
+          this.toastr.error('Error dissolving household: ' + error.message, 'Error');
         }
         return;
       }
@@ -142,46 +146,16 @@ export class HouseholdSettingsComponent implements OnInit, OnDestroy {
     }
 
     try {
-      const batch = writeBatch(this.firestore);
-      const hhRef = doc(this.firestore, `households/${this.household.id}`);
-      const userRef = doc(this.firestore, `users/${this.currentUserUid}`);
-      const membershipRef = doc(
-        this.firestore,
-        `households/${this.household.id}/memberships/${this.currentUserUid}`,
-      );
-
-      const updatedMembers = this.household.members.filter((m) => m.id !== this.currentUserUid);
-      const updatedMemberIds = updatedMembers.map((m) => m.id);
-
-      batch.update(hhRef, {
-        members: updatedMemberIds,
-        member_count: updatedMemberIds.length,
-        is_full: false,
-      });
-
-      batch.update(userRef, { household_id: null, household_name: null, householdName: null });
-
-      batch.delete(membershipRef);
-
-      const tasksQuery = query(
-        collection(this.firestore, `households/${this.household.id}/tasks`),
-        where('assigned_to', '==', this.currentUserUid),
-      );
-      const taskSnaps = await getDocs(tasksQuery);
-      taskSnaps.forEach((docSnap) => {
-        if (docSnap.data()['status'] !== 'completed') {
-          batch.update(docSnap.ref, {
-            assigned_to: this.household!.admin_id,
-          });
+      this.householdService.leaveHousehold().subscribe({
+        next: () => {
+          this.taskService.clearTasks();
+          this.toastr.success('You have successfully left the household.', 'Success');
+          this.router.navigate(['/dashboard']);
+        },
+        error: (err: any) => {
+          this.toastr.error('Error leaving household: ' + err.message, 'Error');
         }
       });
-
-      await batch.commit();
-
-      this.householdService.clearHousehold();
-      this.taskService.clearTasks();
-      this.toastr.success('You have successfully left the household.', 'Success');
-      this.router.navigate(['/dashboard']);
     } catch (error: any) {
       this.toastr.error('Error leaving household: ' + error.message, 'Error');
     }
@@ -350,44 +324,18 @@ export class HouseholdSettingsComponent implements OnInit, OnDestroy {
     if (!confirm('Are you sure you want to remove this member from the household?')) return;
 
     try {
-      const batch = writeBatch(this.firestore);
-      const hhRef = doc(this.firestore, `households/${this.household.id}`);
-      const userRef = doc(this.firestore, `users/${memberId}`);
-      const membershipRef = doc(
-        this.firestore,
-        `households/${this.household.id}/memberships/${memberId}`,
-      );
-
-      const updatedMembers = this.household.members.filter((m) => m.id !== memberId);
-      const updatedMemberIds = updatedMembers.map((m) => m.id);
-
-      batch.update(hhRef, {
-        members: updatedMemberIds,
-        member_count: updatedMemberIds.length,
-        is_full: false,
-      });
-      batch.update(userRef, { household_id: null, household_name: null, householdName: null });
-      batch.delete(membershipRef);
-
-      const tasksQuery = query(
-        collection(this.firestore, `households/${this.household.id}/tasks`),
-        where('assigned_to', '==', memberId),
-      );
-      const taskSnaps = await getDocs(tasksQuery);
-      taskSnaps.forEach((docSnap) => {
-        if (docSnap.data()['status'] !== 'completed') {
-          batch.update(docSnap.ref, {
-            assigned_to: this.household!.admin_id,
-          });
+      this.householdService.removeMember(memberId).subscribe({
+        next: () => {
+          const updatedMembers = this.household!.members.filter((m) => m.id !== memberId);
+          this.household!.members = updatedMembers;
+          this.household!.member_count = updatedMembers.length;
+          this.cdr.detectChanges();
+          this.toastr.success('Member removed successfully.', 'Success');
+        },
+        error: (err: any) => {
+          this.toastr.error('Error removing member: ' + err.message, 'Error');
         }
       });
-
-      await batch.commit();
-
-      this.household.members = updatedMembers;
-      this.household.member_count = updatedMembers.length;
-      this.cdr.detectChanges();
-      this.toastr.success('Member removed successfully.', 'Success');
     } catch (error: any) {
       this.toastr.error('Error removing member: ' + error.message, 'Error');
     }
@@ -430,12 +378,16 @@ export class HouseholdSettingsComponent implements OnInit, OnDestroy {
       return;
 
     try {
-      const hhRef = doc(this.firestore, `households/${this.household.id}`);
-      await deleteDoc(hhRef);
-      this.householdService.clearHousehold();
-      this.taskService.clearTasks();
-      this.toastr.success('Household successfully dissolved.', 'Success');
-      this.router.navigate(['/dashboard']);
+      this.householdService.deleteHousehold().subscribe({
+        next: () => {
+          this.taskService.clearTasks();
+          this.toastr.success('Household successfully dissolved.', 'Success');
+          this.router.navigate(['/dashboard']);
+        },
+        error: (err: any) => {
+          this.toastr.error('Error dissolving household: ' + err.message, 'Error');
+        }
+      });
     } catch (error: any) {
       this.toastr.error('Error dissolving household: ' + error.message, 'Error');
     }

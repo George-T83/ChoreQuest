@@ -21,6 +21,7 @@ import { TaskListComponent } from '../task-list/task-list';
 import { EditTaskComponent } from '../edit-task/edit-task';
 import { Household, HouseholdMember } from '../../models/household';
 import { Task } from '../../models/task';
+import { MemberStats, buildMemberStats } from '../../utils/member-stats';
 
 @Component({
   selector: 'app-dashboard',
@@ -131,6 +132,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   isProfileMenuOpen = false;
   tasksLoadError = '';
 
+  taskTemplate: Partial<Task> | null = null;
   taskToEdit: Task | null = null;
   currentHouseholdId: string = '';
 
@@ -140,8 +142,12 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   processingTaskIds = new Set<string>();
 
+  /** Live stats (streak, badges) for every household member — passed to task-list */
+  memberStatsMap: Map<string, MemberStats> = new Map();
+
   private authUnsubscribe: (() => void) | null = null;
   private pointsUnsubscribe: (() => void) | null = null;
+  private memberStatsUnsubscribes: (() => void)[] = [];
 
   onFilterChange() {
     this.filters$.next(this.filterState);
@@ -174,7 +180,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     navigator.clipboard
       .writeText(code)
       .then(() => {
-        this.toastr.success(`Invite code ${code} copied to clipboard!`, '📋 Copied');
+        this.toastr.info('Invite code copied to clipboard!', 'Copied');
       })
       .catch((err) => {
         console.error('Failed to copy text: ', err);
@@ -195,10 +201,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   getMyOverdueTaskCount(tasks: any[]): number {
     if (!this.currentUser) return 0;
-
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-
     return tasks.filter((task) => {
       if (task.assigned_to !== this.currentUser.uid) return false;
       if (task.status === 'completed') return false;
@@ -209,11 +213,13 @@ export class DashboardComponent implements OnInit, OnDestroy {
     }).length;
   }
 
-  openCreateTask() {
+  openCreateTask(template?: Partial<Task>) {
+    this.taskTemplate = template || null;
     this.isCreateTaskOpen = true;
   }
   closeCreateTask() {
     this.isCreateTaskOpen = false;
+    this.taskTemplate = null;
   }
   onTaskCreated() {
     this.reloadHouseholdTasks();
@@ -232,6 +238,11 @@ export class DashboardComponent implements OnInit, OnDestroy {
   onTaskUpdated() {
     this.reloadHouseholdTasks();
     this.closeEditTask();
+  }
+
+  onTaskCopied(template: Partial<Task>) {
+    this.closeEditTask();
+    this.openCreateTask(template);
   }
 
   completeTask(taskId: string) {
@@ -270,7 +281,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   private subscribeToUserPoints(uid: string) {
     if (this.pointsUnsubscribe) this.pointsUnsubscribe();
-
     const userDocRef = doc(this.firestore, `users/${uid}`);
     this.pointsUnsubscribe = onSnapshot(userDocRef, (snapshot) => {
       if (snapshot.exists()) {
@@ -280,6 +290,30 @@ export class DashboardComponent implements OnInit, OnDestroy {
         this.cdr.detectChanges();
       }
     });
+  }
+
+  /**
+   * Subscribes to live Firestore updates for every household member.
+   * Builds and maintains memberStatsMap (streak + badges) for the task-list.
+   */
+  private subscribeMemberStats(memberUids: string[]): void {
+    this.memberStatsUnsubscribes.forEach((unsub) => unsub());
+    this.memberStatsUnsubscribes = [];
+    this.memberStatsMap = new Map();
+
+    for (const uid of memberUids) {
+      const userRef = doc(this.firestore, `users/${uid}`);
+      const unsub = onSnapshot(userRef, (snap) => {
+        if (snap.exists()) {
+          const stats = buildMemberStats(snap.data());
+          const updated = new Map(this.memberStatsMap);
+          updated.set(uid, stats);
+          this.memberStatsMap = updated;
+          this.cdr.detectChanges();
+        }
+      });
+      this.memberStatsUnsubscribes.push(unsub);
+    }
   }
 
   ngOnInit() {
@@ -296,7 +330,11 @@ export class DashboardComponent implements OnInit, OnDestroy {
       this.householdService.loadMyHousehold().subscribe({
         next: (household) => {
           this.isInitialLoading = false;
-          if (household) this.reloadHouseholdTasks();
+          if (household) {
+            this.reloadHouseholdTasks();
+            const memberUids = (household.members as any[]).map((m) => m.id ?? m);
+            this.subscribeMemberStats(memberUids);
+          }
           this.cdr.detectChanges();
         },
         error: () => {
@@ -310,6 +348,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   ngOnDestroy() {
     if (this.authUnsubscribe) this.authUnsubscribe();
     if (this.pointsUnsubscribe) this.pointsUnsubscribe();
+    this.memberStatsUnsubscribes.forEach((unsub) => unsub());
   }
 
   async logout() {

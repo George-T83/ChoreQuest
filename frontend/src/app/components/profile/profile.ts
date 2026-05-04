@@ -1,6 +1,7 @@
 import { Component, OnInit, OnDestroy, ChangeDetectorRef, inject } from '@angular/core';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { RouterLink, Router } from '@angular/router';
+import { CommonModule } from '@angular/common';
 import { ToastrService } from 'ngx-toastr';
 import { AuthService } from '../../services/auth';
 import { HouseholdService } from '../../services/household';
@@ -14,13 +15,14 @@ import {
   onSnapshot,
 } from '@angular/fire/firestore';
 import { Subscription } from 'rxjs';
+import { Badge, computeBadges, formatStreak } from '../../utils/badge';
 
 @Component({
   selector: 'app-profile',
   templateUrl: './profile.html',
   styleUrls: ['./profile.css'],
   standalone: true,
-  imports: [ReactiveFormsModule, RouterLink],
+  imports: [ReactiveFormsModule, RouterLink, CommonModule],
 })
 export class ProfileComponent implements OnInit, OnDestroy {
   private firestore = inject(Firestore);
@@ -41,13 +43,19 @@ export class ProfileComponent implements OnInit, OnDestroy {
   householdName: string = 'Loading...';
   totalPoints: number = 0;
   leaderboardRank: string = '—';
-  currentStreak: string = '—';
+  currentStreak: number = 0;
+  currentBadges: Badge[] = [];
+  totalTasksCompleted: number = 0;
   isAdmin: boolean = false;
   currentUserUid: string = '';
   currentHousehold: any = null;
   showDeleteAccountModal: boolean = false;
   isDeletingAccount: boolean = false;
   deleteAccountErrorMsg: string = '';
+
+  get streakDisplay(): string {
+    return formatStreak(this.currentStreak);
+  }
 
   constructor(
     private fb: FormBuilder,
@@ -62,7 +70,6 @@ export class ProfileComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit() {
-    // Ensure data is present even if user refreshes while on /profile
     if (!this.hasLoadedHouseholdOnce && !this.householdService.currentHousehold) {
       this.hasLoadedHouseholdOnce = true;
       this.householdService.loadMyHousehold().subscribe();
@@ -71,7 +78,6 @@ export class ProfileComponent implements OnInit, OnDestroy {
     this.profileSub = this.authService.getUserProfileStream().subscribe((data) => {
       if (data) {
         const nameFromDb = data.display_name || 'ChoreQuester';
-
         this.currentUserUid = data.uid;
         this.currentDisplayName = nameFromDb;
         this.initials = nameFromDb.charAt(0).toUpperCase();
@@ -96,14 +102,12 @@ export class ProfileComponent implements OnInit, OnDestroy {
 
     this.hhSub = this.householdService.household$.subscribe((hh) => {
       this.currentHousehold = hh;
-
       if (hh) {
         this.householdName = hh.name;
       } else {
         this.householdName = 'Not in a household';
         this.leaderboardRank = '—';
       }
-
       this.checkAdminStatus();
       this.refreshRank();
       this.cdr.detectChanges();
@@ -115,8 +119,11 @@ export class ProfileComponent implements OnInit, OnDestroy {
     const userRef = doc(this.firestore, `users/${uid}`);
     this.streakUnsub = onSnapshot(userRef, (snap) => {
       if (snap.exists()) {
-        const streak = snap.data()['streak'] ?? 0;
-        this.currentStreak = `${streak}d`;
+        const data = snap.data();
+        this.currentStreak = data['streak'] ?? 0;
+        this.totalTasksCompleted = data['total_tasks_completed'] ?? 0;
+        this.totalPoints = data['points'] ?? this.totalPoints;
+        this.currentBadges = computeBadges(this.totalTasksCompleted, this.totalPoints);
       }
       this.cdr.detectChanges();
     });
@@ -125,12 +132,10 @@ export class ProfileComponent implements OnInit, OnDestroy {
   private refreshRank(): void {
     const uid = this.currentUserUid;
     const hh = this.currentHousehold;
-
     if (!uid) {
       this.leaderboardRank = '—';
       return;
     }
-
     if (!hh || !Array.isArray(hh.members)) {
       this.leaderboardRank = '—';
       return;
@@ -144,41 +149,31 @@ export class ProfileComponent implements OnInit, OnDestroy {
       this.leaderboardRank = '—';
       return;
     }
-
     void this.computeRank(memberIds);
   }
 
   private async computeRank(memberIds: string[]): Promise<void> {
     const seq = ++this.rankComputeSeq;
-
     if (!this.currentUserUid || memberIds.length === 0) {
       if (seq === this.rankComputeSeq) this.leaderboardRank = '—';
       return;
     }
-
     try {
       const usersRef = collection(this.firestore, 'users');
       const q = query(usersRef, where('uid', 'in', memberIds));
       const snap = await getDocs(q);
-
-      // If a newer compute started, ignore this result
       if (seq !== this.rankComputeSeq) return;
       if (!this.currentHousehold) return;
-
       const members = snap.docs.map((d) => ({
         uid: d.data()['uid'] as string,
         points: (d.data()['points'] as number) || 0,
       }));
-
       members.sort((a, b) => b.points - a.points);
-
       const rank = members.findIndex((m) => m.uid === this.currentUserUid) + 1;
-
       this.leaderboardRank = rank > 0 ? `#${rank}` : '—';
     } catch {
       if (seq === this.rankComputeSeq) this.leaderboardRank = '—';
     }
-
     if (seq === this.rankComputeSeq) this.cdr.detectChanges();
   }
 
@@ -192,7 +187,6 @@ export class ProfileComponent implements OnInit, OnDestroy {
 
   onUpdateName(): void {
     if (this.profileForm.invalid) return;
-
     const newName = this.profileForm.value.displayName;
     this.authService.updateProfileName(newName).subscribe({
       next: () => {
