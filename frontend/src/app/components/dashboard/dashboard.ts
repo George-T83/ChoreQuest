@@ -1,18 +1,26 @@
-import { Component, inject, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
+import {
+  Component,
+  inject,
+  OnInit,
+  OnDestroy,
+  ChangeDetectorRef,
+  HostListener,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ToastrService } from 'ngx-toastr';
 import { FormsModule } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
+import { Router, RouterLink, RouterModule } from '@angular/router';
 import { Auth } from '@angular/fire/auth';
+import { Firestore, doc, onSnapshot } from '@angular/fire/firestore';
 import { BehaviorSubject, combineLatest } from 'rxjs';
-import { map } from 'rxjs/operators';
+import { finalize, map, take } from 'rxjs/operators';
 import { HouseholdService } from '../../services/household';
 import { TaskService } from '../../services/task';
 import { CreateTaskComponent } from '../create-task/create-task';
 import { TaskListComponent } from '../task-list/task-list';
+import { EditTaskComponent } from '../edit-task/edit-task';
 import { Household, HouseholdMember } from '../../models/household';
 import { Task } from '../../models/task';
-import { EditTaskComponent } from '../edit-task/edit-task';
 
 @Component({
   selector: 'app-dashboard',
@@ -21,6 +29,7 @@ import { EditTaskComponent } from '../edit-task/edit-task';
     CommonModule,
     FormsModule,
     RouterLink,
+    RouterModule,
     CreateTaskComponent,
     TaskListComponent,
     EditTaskComponent,
@@ -34,6 +43,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   private householdService = inject(HouseholdService);
   private taskService = inject(TaskService);
   private cdr = inject(ChangeDetectorRef);
+  private firestore = inject(Firestore);
   private toastr = inject(ToastrService);
 
   household$ = this.householdService.household$;
@@ -51,10 +61,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   private filters$ = new BehaviorSubject(this.filterState);
 
-  // Master list of tasks for the Header Badge and Background logic
   allTasks$ = this.taskService.tasks$;
-
-  // Filtered and Sorted list for the UI Display
   filteredTasks$ = combineLatest([this.taskService.tasks$, this.filters$]).pipe(
     map(([tasks, filters]) => {
       let filtered = tasks.filter((task) => {
@@ -73,9 +80,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
           if (filters.status === 'Active' && isCompleted) return false;
           if (filters.status === 'Completed' && !isCompleted) return false;
           if (filters.status === 'Overdue' && !isOverdue) return false;
-          // "Pending" means incomplete and NOT overdue yet
           if (filters.status === 'Pending' && (isCompleted || isOverdue)) return false;
         }
+
         if (filters.assignee !== 'All' && task.assigned_to !== filters.assignee) return false;
         if (filters.difficulty !== 'All' && task.difficulty !== filters.difficulty) return false;
         if (filters.recurring === 'Yes' && !task.is_recurring) return false;
@@ -105,9 +112,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
           comparison = dateA - dateB;
         }
 
-        if (filters.sortDir === 'desc') {
-          comparison = comparison * -1;
-        }
+        if (filters.sortDir === 'desc') comparison *= -1;
 
         if (comparison === 0 && filters.sortBy !== 'dueDate') {
           const dateA = a.due_date ? new Date(a.due_date).getTime() : Infinity;
@@ -122,17 +127,39 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   isInitialLoading = true;
   isCreateTaskOpen = false;
+  isEditTaskOpen = false;
+  isProfileMenuOpen = false;
   tasksLoadError = '';
 
-  isEditTaskOpen = false;
   taskToEdit: Task | null = null;
+  currentHouseholdId: string = '';
 
   currentUser: any = null;
+  currentUserPoints: number = 0;
+  currentUserName: string | null = null;
+
+  processingTaskIds = new Set<string>();
 
   private authUnsubscribe: (() => void) | null = null;
+  private pointsUnsubscribe: (() => void) | null = null;
 
   onFilterChange() {
     this.filters$.next(this.filterState);
+  }
+
+  toggleProfileMenu() {
+    this.isProfileMenuOpen = !this.isProfileMenuOpen;
+  }
+
+  @HostListener('document:click', ['$event'])
+  onDocumentClick(event: MouseEvent) {
+    if (!this.isProfileMenuOpen) return;
+    const target = event.target as HTMLElement | null;
+    if (!target) return;
+    if (!target.closest('.profile-menu-container')) {
+      this.isProfileMenuOpen = false;
+      this.cdr.detectChanges();
+    }
   }
 
   isAdmin(household: Household): boolean {
@@ -141,96 +168,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   getMembers(household: Household): HouseholdMember[] {
     return household.members as HouseholdMember[];
-  }
-
-  openCreateTask() {
-    this.isCreateTaskOpen = true;
-  }
-
-  closeCreateTask() {
-    this.isCreateTaskOpen = false;
-  }
-
-  onTaskCreated() {
-    this.reloadHouseholdTasks();
-  }
-
-  openEditTask(task: Task) {
-    this.taskToEdit = task;
-    this.isEditTaskOpen = true;
-  }
-
-  closeEditTask() {
-    this.isEditTaskOpen = false;
-    this.taskToEdit = null;
-  }
-
-  onTaskUpdated() {
-    this.reloadHouseholdTasks();
-    this.closeEditTask();
-  }
-
-  private reloadHouseholdTasks() {
-    this.tasksLoadError = '';
-    this.taskService.loadHouseholdTasks().subscribe({
-      next: () => {
-        this.cdr.detectChanges();
-      },
-      error: (err: Error) => {
-        console.error('Failed to load tasks:', err);
-        this.tasksLoadError = err.message;
-        this.cdr.detectChanges();
-      },
-    });
-  }
-
-  getMyPendingTaskCount(tasks: any[]): number {
-    if (!this.currentUser) return 0;
-
-    return tasks.filter(
-      (task) => task.assigned_to === this.currentUser.uid && task.status !== 'completed',
-    ).length;
-  }
-
-  getMyOverdueTaskCount(tasks: any[]): number {
-    if (!this.currentUser) return 0;
-
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    return tasks.filter((task) => {
-      if (task.assigned_to !== this.currentUser.uid) return false;
-      if (task.status === 'completed') return false;
-      if (!task.due_date) return false;
-      const due = new Date(task.due_date);
-      due.setHours(0, 0, 0, 0);
-      return due.getTime() < today.getTime();
-    }).length;
-  }
-
-  ngOnInit() {
-    this.authUnsubscribe = this.auth.onAuthStateChanged((user) => {
-      this.currentUser = user;
-
-      if (!user) {
-        this.router.navigate(['/login']);
-        return;
-      }
-
-      this.householdService.loadMyHousehold().subscribe({
-        next: (household) => {
-          this.isInitialLoading = false;
-          if (household) {
-            this.reloadHouseholdTasks();
-          }
-          this.cdr.detectChanges();
-        },
-        error: () => {
-          this.isInitialLoading = false;
-          this.cdr.detectChanges();
-        },
-      });
-    });
   }
 
   copyInviteCode(code: string) {
@@ -250,9 +187,139 @@ export class DashboardComponent implements OnInit, OnDestroy {
     return member ? member.display_name : 'Unknown';
   }
 
-  ngOnDestroy(): void {
-    if (this.authUnsubscribe) {
-      this.authUnsubscribe();
+  getMyPendingTaskCount(tasks: any[]): number {
+    if (!this.currentUser) return 0;
+    return tasks.filter((t) => t.assigned_to === this.currentUser.uid && t.status !== 'completed')
+      .length;
+  }
+
+  getMyOverdueTaskCount(tasks: any[]): number {
+    if (!this.currentUser) return 0;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    return tasks.filter((task) => {
+      if (task.assigned_to !== this.currentUser.uid) return false;
+      if (task.status === 'completed') return false;
+      if (!task.due_date) return false;
+      const due = new Date(task.due_date);
+      due.setHours(0, 0, 0, 0);
+      return due.getTime() < today.getTime();
+    }).length;
+  }
+
+  openCreateTask() {
+    this.isCreateTaskOpen = true;
+  }
+  closeCreateTask() {
+    this.isCreateTaskOpen = false;
+  }
+  onTaskCreated() {
+    this.reloadHouseholdTasks();
+  }
+
+  openEditTask(task: Task) {
+    this.taskToEdit = task;
+    this.isEditTaskOpen = true;
+  }
+
+  closeEditTask() {
+    this.isEditTaskOpen = false;
+    this.taskToEdit = null;
+  }
+
+  onTaskUpdated() {
+    this.reloadHouseholdTasks();
+    this.closeEditTask();
+  }
+
+  completeTask(taskId: string) {
+    this.processingTaskIds.add(taskId);
+
+    this.allTasks$.pipe(take(1)).subscribe((tasks) => {
+      const taskToComplete = tasks.find((t) => t.id === taskId);
+      const currentDueDate = taskToComplete?.due_date || '';
+
+      this.taskService
+        .completeTask(taskId, currentDueDate)
+        .pipe(
+          finalize(() => {
+            this.processingTaskIds.delete(taskId);
+            this.cdr.detectChanges();
+          }),
+        )
+        .subscribe({
+          next: () => {},
+          error: (err: Error) => this.toastr.error(err.message, 'Error'),
+        });
+    });
+  }
+
+  private reloadHouseholdTasks() {
+    this.tasksLoadError = '';
+    this.taskService.loadHouseholdTasks().subscribe({
+      next: () => this.cdr.detectChanges(),
+      error: (err: Error) => {
+        console.error('Failed to load tasks:', err);
+        this.tasksLoadError = err.message;
+        this.cdr.detectChanges();
+      },
+    });
+  }
+
+  private subscribeToUserPoints(uid: string) {
+    if (this.pointsUnsubscribe) this.pointsUnsubscribe();
+
+    const userDocRef = doc(this.firestore, `users/${uid}`);
+    this.pointsUnsubscribe = onSnapshot(userDocRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.data();
+        this.currentUserPoints = data['points'] ?? 0;
+        this.currentUserName = data['display_name'] || null;
+        this.cdr.detectChanges();
+      }
+    });
+  }
+
+  ngOnInit() {
+    this.authUnsubscribe = this.auth.onAuthStateChanged((user) => {
+      this.currentUser = user;
+
+      if (!user) {
+        this.router.navigate(['/login']);
+        return;
+      }
+
+      this.subscribeToUserPoints(user.uid);
+
+      this.householdService.loadMyHousehold().subscribe({
+        next: (household) => {
+          this.isInitialLoading = false;
+          if (household) this.reloadHouseholdTasks();
+          this.cdr.detectChanges();
+        },
+        error: () => {
+          this.isInitialLoading = false;
+          this.cdr.detectChanges();
+        },
+      });
+    });
+  }
+
+  ngOnDestroy() {
+    if (this.authUnsubscribe) this.authUnsubscribe();
+    if (this.pointsUnsubscribe) this.pointsUnsubscribe();
+  }
+
+  async logout() {
+    try {
+      await this.auth.signOut();
+      this.householdService.clearHousehold();
+      this.taskService.clearTasks();
+      this.router.navigate(['/login']);
+    } catch (error) {
+      console.error('Error logging out:', error);
     }
   }
 }

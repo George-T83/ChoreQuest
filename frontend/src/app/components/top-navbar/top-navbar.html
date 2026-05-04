@@ -16,9 +16,6 @@
     </div>
   </div>
   <div class="header-right">
-    <button *ngIf="showResetButton" class="reset-btn" (click)="onReset()" [disabled]="isResetting">
-      {{ isResetting ? 'Resetting...' : 'Reset' }}
-    </button>
     <div class="points-counter" title="Your total points">
       <span class="points-star">⭐</span>
       <span class="points-value">{{ currentUserPoints }}</span>

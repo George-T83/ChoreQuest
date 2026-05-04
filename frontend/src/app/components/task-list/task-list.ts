@@ -19,10 +19,16 @@ export class TaskListComponent {
   @Input() isAdmin: boolean = false;
   @Input() tasksLoadError: string = '';
 
-  @Output() openCreateTask = new EventEmitter<void>();
-  @Output() openTask = new EventEmitter<Task>();
+  // FIXED: Added @Input() decorator
+  @Input() processingTaskIds: Set<string> = new Set<string>();
 
-  processingTaskIds = new Set<string>();
+  @Output() openCreateTask = new EventEmitter<void>();
+
+  // FIXED: Renamed back to editTask to match dashboard bindings
+  @Output() editTask = new EventEmitter<Task>();
+
+  // FIXED: Added dummy completeTask output to satisfy dashboard.html binding
+  @Output() completeTask = new EventEmitter<string>();
 
   constructor(
     private taskService: TaskService,
@@ -146,7 +152,7 @@ export class TaskListComponent {
     this.openCreateTask.emit();
   }
 
-  onOpenTask(task: Task): void {
-    this.openTask.emit(task);
+  onEditTask(task: Task): void {
+    this.editTask.emit(task);
   }
 }

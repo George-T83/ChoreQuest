@@ -6,13 +6,20 @@ import { Subject } from 'rxjs';
   providedIn: 'root',
 })
 export class LeaderboardService {
-  private resetTriggered$ = new Subject<void>();
-  public resetTriggered = this.resetTriggered$.asObservable();
+  private resetSource = new Subject<void>();
+  public resetTriggered = this.resetSource.asObservable();
+
+  private viewHistorySource = new Subject<void>();
+  public viewHistoryTriggered = this.viewHistorySource.asObservable();
 
   constructor(private http: HttpClient) {}
 
   triggerReset(): void {
-    this.resetTriggered$.next();
+    this.resetSource.next();
+  }
+
+  triggerViewHistory(): void {
+    this.viewHistorySource.next();
   }
 
   resetLeaderboard() {

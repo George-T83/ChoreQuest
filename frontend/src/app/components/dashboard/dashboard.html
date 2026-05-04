@@ -38,8 +38,8 @@
             [(ngModel)]="filterState.status"
             (change)="onFilterChange()"
           >
+            <option value="All">Any</option>
             <option value="Active">Active</option>
-            <option value="All">All</option>
             <option value="Pending">Pending (On Time)</option>
             <option value="Overdue">Overdue ⚠️</option>
             <option value="Completed">Completed</option>
@@ -154,8 +154,10 @@
         [currentUserUid]="currentUser?.uid ?? ''"
         [isAdmin]="isAdmin(household)"
         [tasksLoadError]="tasksLoadError"
+        [processingTaskIds]="processingTaskIds"
+        (completeTask)="completeTask($event)"
         (openCreateTask)="openCreateTask()"
-        (openTask)="openEditTask($event)"
+        (editTask)="openEditTask($event)"
       />
     } @else {
       <div class="empty-state card">
