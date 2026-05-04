@@ -15,7 +15,9 @@ import {
   getDocs,
 } from '@angular/fire/firestore';
 import { Subscription } from 'rxjs';
+import { ToastrService } from 'ngx-toastr';
 import { HouseholdService } from '../../services/household';
+import { LeaderboardService } from '../../services/leaderboard';
 import { TaskService } from '../../services/task';
 import { Household } from '../../models/household';
 
@@ -31,7 +33,9 @@ export class HouseholdSettingsComponent implements OnInit, OnDestroy {
   private firestore = inject(Firestore);
   private router = inject(Router);
   private householdService = inject(HouseholdService);
+  private leaderboardService = inject(LeaderboardService);
   private taskService = inject(TaskService);
+  private toastr = inject(ToastrService);
   private cdr = inject(ChangeDetectorRef);
 
   // Household and User State
@@ -48,17 +52,20 @@ export class HouseholdSettingsComponent implements OnInit, OnDestroy {
 
   private authSub?: Subscription;
   private hhSub?: Subscription;
-  private hasLoadedHousehold = false;
+  private hasRequestedHouseholdLoad = false;
 
   ngOnInit(): void {
-    if (this.householdService.currentHousehold) {
-      this.isLoading = false;
-    }
+    this.isLoading = true;
 
     this.authSub = user(this.auth).subscribe((u) => {
       this.currentUserUid = u?.uid || null;
 
-      if (u && !this.hasLoadedHousehold) {
+      if (!u) return;
+
+      // Always request household data once we have an auth user.
+      // This fixes refresh/race conditions on /household-settings.
+      if (!this.hasRequestedHouseholdLoad && !this.householdService.currentHousehold) {
+        this.hasRequestedHouseholdLoad = true;
         this.householdService.loadMyHousehold().subscribe({
           next: () => {
             this.isLoading = false;
@@ -70,7 +77,11 @@ export class HouseholdSettingsComponent implements OnInit, OnDestroy {
             this.cdr.detectChanges();
           },
         });
-        this.hasLoadedHousehold = true;
+      } else if (this.householdService.currentHousehold) {
+        // Household already in memory (e.g., navigation from another page)
+        // — stop showing the loader.
+        this.isLoading = false;
+        this.cdr.detectChanges();
       }
     });
 
@@ -110,10 +121,10 @@ export class HouseholdSettingsComponent implements OnInit, OnDestroy {
           await deleteDoc(hhRef);
           this.householdService.clearHousehold();
           this.taskService.clearTasks();
-          alert('Household dissolved and you have left successfully.');
+          this.toastr.success('Household dissolved and you have left successfully.', 'Success');
           this.router.navigate(['/dashboard']);
         } catch (error: any) {
-          alert('Error leaving household: ' + error.message);
+          this.toastr.error('Error leaving household: ' + error.message, 'Error');
         }
         return;
       }
@@ -172,10 +183,10 @@ export class HouseholdSettingsComponent implements OnInit, OnDestroy {
 
       this.householdService.clearHousehold();
       this.taskService.clearTasks();
-      alert('You have successfully left the household.');
+      this.toastr.success('You have successfully left the household.', 'Success');
       this.router.navigate(['/dashboard']);
     } catch (error: any) {
-      alert('Error leaving household: ' + error.message);
+      this.toastr.error('Error leaving household: ' + error.message, 'Error');
     }
   }
 
@@ -187,8 +198,9 @@ export class HouseholdSettingsComponent implements OnInit, OnDestroy {
   // --- TRANSFER OWNERSHIP LOGIC ---
   openTransferModal() {
     if (this.eligibleTransferMembers.length === 0) {
-      alert(
+      this.toastr.warning(
         'You are the only member in this household! Invite someone before transferring ownership.',
+        'Cannot Transfer Ownership',
       );
       return;
     }
@@ -283,12 +295,12 @@ export class HouseholdSettingsComponent implements OnInit, OnDestroy {
           this.closeTransferModal();
           this.householdService.clearHousehold();
           this.taskService.clearTasks();
-          alert('Ownership transferred and you have left the household.');
+          this.toastr.success('Ownership transferred and you have left the household.', 'Success');
           this.router.navigate(['/dashboard']);
         } catch (error: any) {
           this.isTransferring = false;
           this.cdr.detectChanges();
-          alert('Error transferring ownership and leaving: ' + error.message);
+          this.toastr.error('Error transferring ownership and leaving: ' + error.message, 'Error');
         }
       };
 
@@ -319,22 +331,22 @@ export class HouseholdSettingsComponent implements OnInit, OnDestroy {
     try {
       const hhRef = doc(this.firestore, `households/${this.household.id}`);
       await updateDoc(hhRef, { name: this.editName.trim() });
-      alert('Household name updated successfully!');
+      this.toastr.success('Household name updated successfully!', 'Success');
     } catch (error: any) {
-      alert('Error updating name: ' + error.message);
+      this.toastr.error('Error updating name: ' + error.message, 'Error');
     }
   }
 
   copyCode() {
     if (!this.household) return;
     navigator.clipboard.writeText(this.household.invite_code);
-    alert('Invite code copied to clipboard!');
+    this.toastr.info('Invite code copied to clipboard!', 'Copied');
   }
 
   async removeMember(memberId: string) {
     if (!this.household) return;
     if (memberId === this.household.admin_id) {
-      alert('You cannot remove the Admin. You must transfer ownership or dissolve the household.');
+      this.toastr.warning('You cannot remove the Admin. You must transfer ownership or dissolve the household.', 'Cannot Remove Admin');
       return;
     }
     if (!confirm('Are you sure you want to remove this member from the household?')) return;
@@ -377,13 +389,13 @@ export class HouseholdSettingsComponent implements OnInit, OnDestroy {
       this.household.members = updatedMembers;
       this.household.member_count = updatedMembers.length;
       this.cdr.detectChanges();
-      alert('Member removed successfully.');
+      this.toastr.success('Member removed successfully.', 'Success');
     } catch (error: any) {
-      alert('Error removing member: ' + error.message);
+      this.toastr.error('Error removing member: ' + error.message, 'Error');
     }
   }
 
-  async resetLeaderboard() {
+  resetLeaderboard(): void {
     if (!this.household) return;
     if (
       !confirm(
@@ -392,17 +404,17 @@ export class HouseholdSettingsComponent implements OnInit, OnDestroy {
     )
       return;
 
-    try {
-      const batch = writeBatch(this.firestore);
-      for (const member of this.household.members) {
-        const userRef = doc(this.firestore, `users/${member.id}`);
-        batch.update(userRef, { points: 0 });
-      }
-      await batch.commit();
-      alert('Leaderboard has been reset to zero for the new cycle!');
-    } catch (error: any) {
-      alert('Error resetting leaderboard: ' + error.message);
-    }
+    this.leaderboardService.resetLeaderboard().subscribe({
+      next: () => {
+        this.toastr.success('Leaderboard reset successfully!', 'Reset complete', {
+          enableHtml: true,
+        });
+      },
+      error: (err) => {
+        console.error('Reset failed:', err);
+        this.toastr.error('Reset failed. Check the console for details.', 'Reset failed');
+      },
+    });
   }
 
   async dissolveHousehold() {
@@ -419,10 +431,10 @@ export class HouseholdSettingsComponent implements OnInit, OnDestroy {
       await deleteDoc(hhRef);
       this.householdService.clearHousehold();
       this.taskService.clearTasks();
-      alert('Household successfully dissolved.');
+      this.toastr.success('Household successfully dissolved.', 'Success');
       this.router.navigate(['/dashboard']);
     } catch (error: any) {
-      alert('Error dissolving household: ' + error.message);
+      this.toastr.error('Error dissolving household: ' + error.message, 'Error');
     }
   }
 }
