@@ -1,0 +1,134 @@
+<div class="app-container">
+  <header class="app-header">
+    <div class="header-left">
+      <h1 class="logo-text">ChoreQuest</h1>
+    </div>
+    <div class="header-center">
+      <h2 class="page-title">Leaderboard</h2>
+    </div>
+    <div class="header-right">
+      <div class="points-counter" title="Your total points">
+        <span class="points-star">⭐</span>
+        <span class="points-value">{{ currentUserPoints }}</span>
+      </div>
+      <div class="profile-menu-container">
+        <div class="avatar" (click)="toggleProfileMenu()" title="Profile Menu">
+          {{
+            (currentUserName || currentUser?.displayName || currentUser?.email || '?')
+              .charAt(0)
+              .toUpperCase()
+          }}
+        </div>
+        @if (isProfileMenuOpen) {
+          <div class="profile-dropdown card">
+            <div class="dropdown-header">
+              <strong>{{
+                currentUserName || currentUser?.displayName || currentUser?.email || 'My Profile'
+              }}</strong>
+              <p class="dropdown-points">⭐ {{ currentUserPoints }} pts</p>
+            </div>
+            <hr class="dropdown-divider" />
+            <ul class="dropdown-list">
+              <li>
+                <a routerLink="/profile" (click)="isProfileMenuOpen = false">Profile Settings</a>
+              </li>
+            </ul>
+            <hr class="dropdown-divider" />
+            <ul class="dropdown-list">
+              <li><a class="text-danger" (click)="logout()">Log out</a></li>
+            </ul>
+          </div>
+        }
+      </div>
+    </div>
+  </header>
+
+  <main class="main-content">
+    <div class="podium-wrapper" *ngIf="topThree.length > 0">
+      <div class="podium-pillar rank-2" *ngIf="topThree.length > 1">
+        <div class="avatar">{{ topThree[1].initials }}</div>
+        <div class="pillar-block">#2</div>
+        <div class="podium-name">{{ topThree[1].firstName }}</div>
+        <div class="podium-pts">{{ topThree[1].points }} pts</div>
+      </div>
+
+      <div class="podium-pillar rank-1" *ngIf="topThree.length > 0">
+        <div class="star">★</div>
+        <div class="avatar">{{ topThree[0].initials }}</div>
+        <div class="pillar-block">#1</div>
+        <div class="podium-name">{{ topThree[0].firstName }}</div>
+        <div class="podium-pts top-pts">{{ topThree[0].points }} pts</div>
+      </div>
+
+      <div class="podium-pillar rank-3" *ngIf="topThree.length > 2">
+        <div class="avatar">{{ topThree[2].initials }}</div>
+        <div class="pillar-block">#3</div>
+        <div class="podium-name">{{ topThree[2].firstName }}</div>
+        <div class="podium-pts">{{ topThree[2].points }} pts</div>
+      </div>
+    </div>
+
+    <section class="all-members-section">
+      <h3 class="section-title">ALL MEMBERS</h3>
+
+      <div class="members-list">
+        <div class="member-row" *ngFor="let member of allMembers; let i = index">
+          <div class="member-left">
+            <span class="rank-number" [class.top-rank]="i === 0">{{ i + 1 }}</span>
+            <div class="avatar">{{ member.initials }}</div>
+            <div class="member-info">
+              <div class="member-name">{{ member.firstName }} {{ member.lastName }}</div>
+              <div class="member-streak" [class.no-activity]="member.statusBadge === 'No activity'">
+                <span *ngIf="member.statusBadge !== 'No activity'"
+                  >{{ member.streak }} day streak</span
+                >
+                <span *ngIf="member.statusBadge === 'No activity'">No activity</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="member-right">
+            <div class="member-pts" [class.top-pts]="i === 0">{{ member.points }} pts</div>
+            <div
+              class="badge"
+              *ngIf="member.statusBadge && member.statusBadge !== 'No activity'"
+              [attr.data-badge]="member.statusBadge"
+            >
+              {{ member.statusBadge }}
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div class="stats-strip">
+      <div class="stat-card">
+        <div class="stat-value">{{ totalChoresCompleted }}</div>
+        <div class="stat-label">Chores completed this week</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">{{ topStreakDays }}d</div>
+        <div class="stat-label">Top streak ({{ topStreakHolder || 'None' }})</div>
+      </div>
+    </div>
+  </main>
+
+  <nav class="bottom-nav">
+    <div class="nav-item" routerLink="/dashboard">
+      <span class="icon">⊞</span>
+      <span>Dashboard</span>
+    </div>
+    <div class="nav-item">
+      <span class="icon">☐</span>
+      <span>Tasks</span>
+    </div>
+    <div class="nav-item active">
+      <span class="icon">↗</span>
+      <span>Leaderboard</span>
+    </div>
+    <div class="nav-item" routerLink="/profile">
+      <span class="icon">⊙</span>
+      <span>Profile</span>
+    </div>
+  </nav>
+</div>

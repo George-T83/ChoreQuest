@@ -40,16 +40,16 @@ export const routes: Routes = [
     component: HouseholdSettingsComponent,
     canActivate: [authGuard],
   },
-  { 
-    path: 'profile', 
-    component: ProfileComponent 
+  {
+    path: 'profile',
+    component: ProfileComponent,
   },
-  
-  // --- ADDED LEADERBOARD ROUTE ---
+
   {
     path: 'leaderboard',
     canActivate: [authGuard],
-    loadComponent: () => import('./components/leaderboard/leaderboard.component').then((m) => m.LeaderboardComponent),
+    loadComponent: () =>
+      import('./components/leaderboard/leaderboard').then((m) => m.LeaderboardComponent),
   },
 
   { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
