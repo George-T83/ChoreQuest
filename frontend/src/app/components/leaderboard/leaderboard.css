@@ -1,10 +1,72 @@
+/* Toolbar & Sleek View History Button */
+.leaderboard-toolbar {
+  display: flex;
+  justify-content: center; /* Centers the button above the podium */
+  padding-top: 16px;
+  gap: 12px; /* Added gap to space the two buttons */
+}
+
+.btn-history {
+  background: rgba(95, 85, 210, 0.1);
+  color: #5f55d2;
+  border: none;
+  border-radius: 99px; /* Pill shape */
+  padding: 8px 18px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s ease;
+}
+
+.btn-history:hover {
+  background: rgba(95, 85, 210, 0.2);
+  transform: translateY(-2px); /* Gentle lift effect */
+}
+
+.btn-history .icon {
+  font-size: 1.1em;
+}
+
+.btn-reset {
+  background: rgba(220, 38, 38, 0.1); /* Light red background */
+  color: #dc2626; /* Deep red text */
+  border: none;
+  border-radius: 99px;
+  padding: 8px 18px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s ease;
+}
+
+.btn-reset:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.btn-reset:hover:not(:disabled) {
+  background: rgba(220, 38, 38, 0.2);
+  transform: translateY(-2px);
+}
+
+.btn-reset .icon {
+  font-size: 1.1em;
+}
+
 /* === PODIUM STYLES === */
 .podium-wrapper {
   display: flex;
   justify-content: center;
   align-items: flex-end;
   gap: 16px;
-  margin: 32px 16px;
+  margin: 16px 16px 32px 16px; /* Adjusted margin for the new button placement */
 }
 
 .podium-wrapper--compact {

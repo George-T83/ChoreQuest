@@ -1,56 +1,3 @@
-<div class="header-center">
-  @if (allTasks$ | async; as tasks) {
-    @if (getMyPendingTaskCount(tasks) > 0) {
-      <span class="badge badge--success">
-        {{ getMyPendingTaskCount(tasks) }} task{{
-          getMyPendingTaskCount(tasks) === 1 ? '' : 's'
-        }}
-        assigned to you
-      </span>
-    }
-  }
-</div>
-<div class="header-right">
-  <div class="points-counter" title="Your total points">
-    <span class="points-star">⭐</span>
-    <span class="points-value">{{ currentUserPoints }}</span>
-  </div>
-  <div class="profile-menu-container">
-    <div class="avatar" (click)="toggleProfileMenu()" title="Profile Menu">
-      {{
-        (currentUserName || currentUser?.displayName || currentUser?.email || '?')
-          .charAt(0)
-          .toUpperCase()
-      }}
-    </div>
-    @if (isProfileMenuOpen) {
-      <div class="profile-dropdown card">
-        <div class="dropdown-header">
-          <strong>{{
-            currentUserName || currentUser?.displayName || currentUser?.email || 'My Profile'
-          }}</strong>
-          <p class="dropdown-points">⭐ {{ currentUserPoints }} pts</p>
-        </div>
-        <hr class="dropdown-divider" />
-        <ul class="dropdown-list">
-          <li><a routerLink="/profile" (click)="isProfileMenuOpen = false">Profile Settings</a></li>
-          @if (household$ | async) {
-            <li>
-              <a routerLink="/household-settings" (click)="isProfileMenuOpen = false"
-                >Household Settings</a
-              >
-            </li>
-          }
-        </ul>
-        <hr class="dropdown-divider" />
-        <ul class="dropdown-list">
-          <li><a class="text-danger" (click)="logout()">Log out</a></li>
-        </ul>
-      </div>
-    }
-  </div>
-</div>
-
 <main class="main-content">
   @if (isInitialLoading) {
     <div class="loading-state">
@@ -201,24 +148,6 @@
         </div>
       </div>
 
-      @if (isAdmin(household)) {
-        <div class="leaderboard-controls card">
-          <div class="leaderboard-controls__header">
-            <h3>Leaderboard</h3>
-            <div class="leaderboard-controls__buttons">
-              <button class="btn-history" (click)="openHistoryModal()">🕒 View History</button>
-              <button
-                class="btn-reset"
-                (click)="resetLeaderboard()"
-                [disabled]="isResettingLeaderboard"
-              >
-                {{ isResettingLeaderboard ? 'Resetting...' : '🔄 Reset Cycle' }}
-              </button>
-            </div>
-          </div>
-        </div>
-      }
-
       <app-task-list
         [tasks]="(filteredTasks$ | async) ?? []"
         [household]="household"
@@ -262,9 +191,5 @@
         (taskUpdated)="onTaskUpdated()"
       />
     }
-  }
-
-  @if (isHistoryModalOpen && currentHouseholdId) {
-    <app-leaderboard-history [householdId]="currentHouseholdId" (closed)="closeHistoryModal()" />
   }
 </main>

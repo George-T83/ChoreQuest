@@ -143,25 +143,45 @@
   margin-bottom: 0.5rem;
 }
 
-.history-item__winner {
+.standings-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.standings-row {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  padding: 0.4rem 0.5rem;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
 }
 
-.trophy {
-  font-size: 1.25rem;
+.standings-row[data-rank="1"] {
+  background: rgba(250, 204, 21, 0.08);
+  border-color: rgba(250, 204, 21, 0.4);
 }
 
-.winner-name {
-  font-size: 1rem;
-  font-weight: 700;
-  color: #111827;
+.medal {
+  font-size: 1.1rem;
+  width: 1.5rem;
+  text-align: center;
+}
+
+.standings-name {
   flex: 1;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #111827;
 }
 
-.winner-points {
-  font-size: 0.875rem;
+.standings-points {
+  font-size: 0.8rem;
   font-weight: 700;
   color: #7c3aed;
   background: rgba(124, 58, 237, 0.1);

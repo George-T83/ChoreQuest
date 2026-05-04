@@ -25,11 +25,15 @@
         @for (cycle of history; track cycle.id) {
         <li class="history-item">
           <div class="history-item__date">{{ formatDate(cycle.cycle_end_date) }}</div>
-          <div class="history-item__winner">
-            <span class="trophy">🥇</span>
-            <span class="winner-name">{{ cycle.winner_name }}</span>
-            <span class="winner-points">{{ cycle.winner_points }} pts</span>
-          </div>
+          <ol class="standings-list">
+            @for (entry of (cycle.standings || []).slice(0, 3); track entry.uid; let i = $index) {
+            <li class="standings-row" [attr.data-rank]="i + 1">
+              <span class="medal">{{ medalFor(i) }}</span>
+              <span class="standings-name">{{ entry.name }}</span>
+              <span class="standings-points">{{ entry.points }} pts</span>
+            </li>
+            }
+          </ol>
         </li>
         }
       </ul>

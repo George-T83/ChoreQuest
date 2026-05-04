@@ -12,7 +12,6 @@ import { FormsModule } from '@angular/forms';
 import { Router, RouterLink, RouterModule } from '@angular/router';
 import { Auth } from '@angular/fire/auth';
 import { Firestore, doc, onSnapshot } from '@angular/fire/firestore';
-import { HttpClient } from '@angular/common/http';
 import { BehaviorSubject, combineLatest } from 'rxjs';
 import { finalize, map, take } from 'rxjs/operators';
 import { HouseholdService } from '../../services/household';
@@ -20,7 +19,6 @@ import { TaskService } from '../../services/task';
 import { CreateTaskComponent } from '../create-task/create-task';
 import { TaskListComponent } from '../task-list/task-list';
 import { EditTaskComponent } from '../edit-task/edit-task';
-import { LeaderboardHistoryComponent } from '../leaderboard-history/leaderboard-history';
 import { Household, HouseholdMember } from '../../models/household';
 import { Task } from '../../models/task';
 
@@ -35,7 +33,6 @@ import { Task } from '../../models/task';
     CreateTaskComponent,
     TaskListComponent,
     EditTaskComponent,
-    LeaderboardHistoryComponent,
   ],
   templateUrl: './dashboard.html',
   styleUrls: ['./dashboard.css'],
@@ -46,7 +43,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
   private householdService = inject(HouseholdService);
   private taskService = inject(TaskService);
   private cdr = inject(ChangeDetectorRef);
-  private http = inject(HttpClient);
   private firestore = inject(Firestore);
   private toastr = inject(ToastrService);
 
@@ -84,7 +80,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
           if (filters.status === 'Active' && isCompleted) return false;
           if (filters.status === 'Completed' && !isCompleted) return false;
           if (filters.status === 'Overdue' && !isOverdue) return false;
-          // "Pending" means incomplete and NOT overdue yet
           if (filters.status === 'Pending' && (isCompleted || isOverdue)) return false;
         }
 
@@ -133,8 +128,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
   isInitialLoading = true;
   isCreateTaskOpen = false;
   isEditTaskOpen = false;
-  isHistoryModalOpen = false;
-  isResettingLeaderboard = false;
   isProfileMenuOpen = false;
   tasksLoadError = '';
 
@@ -150,12 +143,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
   private authUnsubscribe: (() => void) | null = null;
   private pointsUnsubscribe: (() => void) | null = null;
 
-  // ── Filter ─────────────────────────────────────────────────────────────────
   onFilterChange() {
     this.filters$.next(this.filterState);
   }
 
-  // ── Profile menu ───────────────────────────────────────────────────────────
   toggleProfileMenu() {
     this.isProfileMenuOpen = !this.isProfileMenuOpen;
   }
@@ -171,7 +162,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
     }
   }
 
-  // ── Household helpers ──────────────────────────────────────────────────────
   isAdmin(household: Household): boolean {
     return household.admin_id === this.currentUser?.uid;
   }
@@ -219,7 +209,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
     }).length;
   }
 
-  // ── Create task ────────────────────────────────────────────────────────────
   openCreateTask() {
     this.isCreateTaskOpen = true;
   }
@@ -230,7 +219,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.reloadHouseholdTasks();
   }
 
-  // ── Edit task ──────────────────────────────────────────────────────────────
   openEditTask(task: Task) {
     this.taskToEdit = task;
     this.isEditTaskOpen = true;
@@ -246,46 +234,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.closeEditTask();
   }
 
-  // ── History Modal ──────────────────────────────────────────────────────────
-  openHistoryModal() {
-    console.log('openHistoryModal called');
-    this.householdService.household$.pipe(take(1)).subscribe((household) => {
-      if (household) {
-        this.currentHouseholdId = household.id;
-        this.isHistoryModalOpen = true;
-        this.cdr.detectChanges();
-      }
-    });
-  }
-  closeHistoryModal() {
-    this.isHistoryModalOpen = false;
-  }
-
-  // ── Reset leaderboard ──────────────────────────────────────────────────────
-  resetLeaderboard(): void {
-    if (!confirm('Are you sure you want to reset all points? This cannot be undone.')) return;
-
-    this.isResettingLeaderboard = true;
-
-    this.http.post<any>('/api/household/reset-leaderboard/', {}).subscribe({
-      next: (response) => {
-        this.isResettingLeaderboard = false;
-        this.currentUserPoints = 0;
-        this.toastr.success(
-          `${response.winner_name} wins this cycle with ${response.winner_points} pts!`,
-          'Leaderboard Reset! 🏆',
-        );
-        this.cdr.detectChanges();
-      },
-      error: (err) => {
-        this.isResettingLeaderboard = false;
-        this.toastr.error(err.error?.detail ?? 'Failed to reset leaderboard.', 'Error');
-        this.cdr.detectChanges();
-      },
-    });
-  }
-
-  // ── Complete task ──────────────────────────────────────────────────────────
   completeTask(taskId: string) {
     this.processingTaskIds.add(taskId);
 
@@ -308,7 +256,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
     });
   }
 
-  // ── Tasks ──────────────────────────────────────────────────────────────────
   private reloadHouseholdTasks() {
     this.tasksLoadError = '';
     this.taskService.loadHouseholdTasks().subscribe({
@@ -321,7 +268,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
     });
   }
 
-  // ── Points listener ────────────────────────────────────────────────────────
   private subscribeToUserPoints(uid: string) {
     if (this.pointsUnsubscribe) this.pointsUnsubscribe();
 
@@ -336,7 +282,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
     });
   }
 
-  // ── Lifecycle ──────────────────────────────────────────────────────────────
   ngOnInit() {
     this.authUnsubscribe = this.auth.onAuthStateChanged((user) => {
       this.currentUser = user;
@@ -346,7 +291,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
         return;
       }
 
-      // Start listening to live point updates
       this.subscribeToUserPoints(user.uid);
 
       this.householdService.loadMyHousehold().subscribe({

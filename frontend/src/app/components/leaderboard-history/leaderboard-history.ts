@@ -1,4 +1,15 @@
-import { Component, Input, Output, EventEmitter, OnInit, inject } from '@angular/core';
+import {
+  Component,
+  Input,
+  Output,
+  EventEmitter,
+  OnInit,
+  ChangeDetectorRef,
+  Injector,
+  NgZone,
+  inject,
+  runInInjectionContext,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Firestore, collection, query, orderBy, getDocs } from '@angular/fire/firestore';
 
@@ -23,6 +34,9 @@ export class LeaderboardHistoryComponent implements OnInit {
   @Output() closed = new EventEmitter<void>();
 
   private firestore = inject(Firestore);
+  private injector = inject(Injector);
+  private zone = inject(NgZone);
+  private cdr = inject(ChangeDetectorRef);
 
   history: CycleHistory[] = [];
   loading = true;
@@ -34,21 +48,31 @@ export class LeaderboardHistoryComponent implements OnInit {
 
   async loadHistory(): Promise<void> {
     try {
-      const historyRef = collection(
-        this.firestore,
-        `households/${this.householdId}/history`
+      const snapshot = await this.zone.runOutsideAngular(() =>
+        runInInjectionContext(this.injector, () => {
+          const historyRef = collection(
+            this.firestore,
+            `households/${this.householdId}/history`,
+          );
+          return getDocs(query(historyRef, orderBy('cycle_end_date', 'desc')));
+        }),
       );
-      const q = query(historyRef, orderBy('cycle_end_date', 'desc'));
-      const snapshot = await getDocs(q);
 
-      this.history = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-      })) as CycleHistory[];
+      this.zone.run(() => {
+        this.history = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        })) as CycleHistory[];
+        this.loading = false;
+        this.cdr.detectChanges();
+      });
     } catch (err) {
-      this.errorMsg = 'Failed to load history. Please try again.';
-    } finally {
-      this.loading = false;
+      this.zone.run(() => {
+        console.error('Hall of Fame load failed:', err);
+        this.errorMsg = 'Failed to load history. Please try again.';
+        this.loading = false;
+        this.cdr.detectChanges();
+      });
     }
   }
 
@@ -60,6 +84,10 @@ export class LeaderboardHistoryComponent implements OnInit {
       day: 'numeric',
       year: 'numeric',
     });
+  }
+
+  medalFor(index: number): string {
+    return ['🥇', '🥈', '🥉'][index] ?? `#${index + 1}`;
   }
 
   close(): void {

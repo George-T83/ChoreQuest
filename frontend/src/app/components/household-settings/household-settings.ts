@@ -63,7 +63,6 @@ export class HouseholdSettingsComponent implements OnInit, OnDestroy {
       if (!u) return;
 
       // Always request household data once we have an auth user.
-      // This fixes refresh/race conditions on /household-settings.
       if (!this.hasRequestedHouseholdLoad && !this.householdService.currentHousehold) {
         this.hasRequestedHouseholdLoad = true;
         this.householdService.loadMyHousehold().subscribe({
@@ -78,8 +77,6 @@ export class HouseholdSettingsComponent implements OnInit, OnDestroy {
           },
         });
       } else if (this.householdService.currentHousehold) {
-        // Household already in memory (e.g., navigation from another page)
-        // — stop showing the loader.
         this.isLoading = false;
         this.cdr.detectChanges();
       }
@@ -190,12 +187,10 @@ export class HouseholdSettingsComponent implements OnInit, OnDestroy {
     }
   }
 
-  // Gets everyone in the household EXCEPT the current admin
   get eligibleTransferMembers() {
     return this.household?.members.filter((m) => m.id !== this.currentUserUid) || [];
   }
 
-  // --- TRANSFER OWNERSHIP LOGIC ---
   openTransferModal() {
     if (this.eligibleTransferMembers.length === 0) {
       this.toastr.warning(
@@ -408,14 +403,19 @@ export class HouseholdSettingsComponent implements OnInit, OnDestroy {
       return;
 
     this.leaderboardService.resetLeaderboard().subscribe({
-      next: () => {
-        this.toastr.success('Leaderboard reset successfully!', 'Reset complete', {
-          enableHtml: true,
-        });
+      next: (response: any) => {
+        if (response.cycle_saved) {
+          this.toastr.success(
+            `${response.winner_name} wins this cycle with ${response.winner_points} pts!`,
+            'Leaderboard Reset! 🏆',
+          );
+        } else {
+          this.toastr.success('Points and tasks have been reset to zero.', 'Reset Complete');
+        }
       },
-      error: (err) => {
+      error: (err: any) => {
         console.error('Reset failed:', err);
-        this.toastr.error('Reset failed. Check the console for details.', 'Reset failed');
+        this.toastr.error(err.error?.detail ?? 'Failed to reset leaderboard.', 'Reset failed');
       },
     });
   }
