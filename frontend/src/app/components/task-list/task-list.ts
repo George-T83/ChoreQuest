@@ -20,7 +20,7 @@ export class TaskListComponent {
   @Input() tasksLoadError: string = '';
 
   @Output() openCreateTask = new EventEmitter<void>();
-  @Output() editTask = new EventEmitter<Task>();
+  @Output() openTask = new EventEmitter<Task>();
 
   processingTaskIds = new Set<string>();
 
@@ -127,14 +127,14 @@ export class TaskListComponent {
             { enableHtml: true },
           );
         } else {
-          this.toastr.success('Chore cleared from the board.', '✅ Done!', {
+          this.toastr.success('Chore cleared from the board.', 'Done!', {
             enableHtml: true,
           });
         }
       },
       error: (err: Error) => {
         this.processingTaskIds.delete(taskId);
-        this.toastr.error(err.message, '❌ Something went wrong', {
+        this.toastr.error(err.message, 'Something went wrong', {
           enableHtml: true,
           timeOut: 5000,
         });
@@ -146,7 +146,7 @@ export class TaskListComponent {
     this.openCreateTask.emit();
   }
 
-  onEditTask(task: Task): void {
-    this.editTask.emit(task);
+  onOpenTask(task: Task): void {
+    this.openTask.emit(task);
   }
 }

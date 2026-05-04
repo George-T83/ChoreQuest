@@ -1,8 +1,18 @@
-import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef, inject } from '@angular/core';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { RouterLink, Router } from '@angular/router';
+import { ToastrService } from 'ngx-toastr';
 import { AuthService } from '../../services/auth';
 import { HouseholdService } from '../../services/household';
+import {
+  Firestore,
+  collection,
+  query,
+  where,
+  getDocs,
+  doc,
+  onSnapshot,
+} from '@angular/fire/firestore';
 import { Subscription } from 'rxjs';
 
 @Component({
@@ -13,19 +23,25 @@ import { Subscription } from 'rxjs';
   imports: [ReactiveFormsModule, RouterLink],
 })
 export class ProfileComponent implements OnInit, OnDestroy {
+  private firestore = inject(Firestore);
+
   profileForm: FormGroup;
   private profileSub?: Subscription;
   private hhSub?: Subscription;
+  private streakUnsub: (() => void) | null = null;
+  private toastr = inject(ToastrService);
 
-  // UI States
+  private hasLoadedHouseholdOnce = false;
+  private rankComputeSeq = 0;
+
   isLoading: boolean = true;
   currentDisplayName: string = '';
   initials: string = '';
   email: string = '';
   householdName: string = 'Loading...';
   totalPoints: number = 0;
-  leaderboardRank: string = '#3';
-  currentStreak: string = '2d';
+  leaderboardRank: string = '—';
+  currentStreak: string = '—';
   isAdmin: boolean = false;
   currentUserUid: string = '';
   currentHousehold: any = null;
@@ -46,6 +62,12 @@ export class ProfileComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit() {
+    // Ensure data is present even if user refreshes while on /profile
+    if (!this.hasLoadedHouseholdOnce && !this.householdService.currentHousehold) {
+      this.hasLoadedHouseholdOnce = true;
+      this.householdService.loadMyHousehold().subscribe();
+    }
+
     this.profileSub = this.authService.getUserProfileStream().subscribe((data) => {
       if (data) {
         const nameFromDb = data.display_name || 'ChoreQuester';
@@ -62,10 +84,12 @@ export class ProfileComponent implements OnInit, OnDestroy {
 
         this.isLoading = false;
         this.checkAdminStatus();
-
+        this.subscribeToStreak(data.uid);
+        this.refreshRank();
         this.cdr.detectChanges();
       } else {
         this.isLoading = false;
+        this.leaderboardRank = '—';
         this.cdr.detectChanges();
       }
     });
@@ -77,12 +101,85 @@ export class ProfileComponent implements OnInit, OnDestroy {
         this.householdName = hh.name;
       } else {
         this.householdName = 'Not in a household';
+        this.leaderboardRank = '—';
       }
 
       this.checkAdminStatus();
-
+      this.refreshRank();
       this.cdr.detectChanges();
     });
+  }
+
+  private subscribeToStreak(uid: string): void {
+    if (this.streakUnsub) this.streakUnsub();
+    const userRef = doc(this.firestore, `users/${uid}`);
+    this.streakUnsub = onSnapshot(userRef, (snap) => {
+      if (snap.exists()) {
+        const streak = snap.data()['streak'] ?? 0;
+        this.currentStreak = `${streak}d`;
+      }
+      this.cdr.detectChanges();
+    });
+  }
+
+  private refreshRank(): void {
+    const uid = this.currentUserUid;
+    const hh = this.currentHousehold;
+
+    if (!uid) {
+      this.leaderboardRank = '—';
+      return;
+    }
+
+    if (!hh || !Array.isArray(hh.members)) {
+      this.leaderboardRank = '—';
+      return;
+    }
+
+    const memberIds = hh.members
+      .map((m: any) => m?.id)
+      .filter((id: unknown): id is string => typeof id === 'string' && id.length > 0);
+
+    if (memberIds.length === 0) {
+      this.leaderboardRank = '—';
+      return;
+    }
+
+    void this.computeRank(memberIds);
+  }
+
+  private async computeRank(memberIds: string[]): Promise<void> {
+    const seq = ++this.rankComputeSeq;
+
+    if (!this.currentUserUid || memberIds.length === 0) {
+      if (seq === this.rankComputeSeq) this.leaderboardRank = '—';
+      return;
+    }
+
+    try {
+      const usersRef = collection(this.firestore, 'users');
+      const q = query(usersRef, where('uid', 'in', memberIds));
+      const snap = await getDocs(q);
+
+      // If a newer compute started, ignore this result
+      if (seq !== this.rankComputeSeq) return;
+      if (!this.currentHousehold) return;
+
+      const members = snap.docs.map((d) => ({
+        uid: d.data()['uid'] as string,
+        points: (d.data()['points'] as number) || 0,
+      }));
+
+      members.sort((a, b) => b.points - a.points);
+
+      const rank = members.findIndex((m) => m.uid === this.currentUserUid) + 1;
+
+      this.leaderboardRank = rank > 0 ? `#${rank}` : '—';
+    } catch {
+      if (seq === this.rankComputeSeq) this.leaderboardRank = '—';
+    }
+
+    if (seq === this.rankComputeSeq) this.cdr.detectChanges();
   }
 
   private checkAdminStatus() {
@@ -94,63 +191,47 @@ export class ProfileComponent implements OnInit, OnDestroy {
   }
 
   onUpdateName(): void {
-    if (this.profileForm.invalid) {
-      console.error('Form is invalid:', this.profileForm.errors);
-      return;
-    }
+    if (this.profileForm.invalid) return;
 
     const newName = this.profileForm.value.displayName;
-    console.log('Attempting to update name to:', newName);
-
     this.authService.updateProfileName(newName).subscribe({
       next: () => {
-        console.log('Update successful!');
-        alert('Name updated successfully!');
+        this.toastr.success('Your profile name has been updated.', 'Name Updated');
         this.profileForm.markAsPristine();
       },
-      error: (err) => {
-        console.error('Firestore update failed:', err);
-        alert('Error: ' + err.message);
-      },
+      error: (err) => this.toastr.error(err.message, 'Update Failed'),
     });
   }
 
   onChangePassword(): void {
     if (!this.email) {
-      alert('Error: No email address found for this account.');
+      this.toastr.error('No email address found for this account.', 'Error');
       return;
     }
-
     this.authService.sendPasswordReset(this.email).subscribe({
-      next: () => alert('Reset email sent! Check your inbox to reset your password.'),
-      error: (err) => {
-        console.error('Password reset failed:', err);
-        alert('Error: ' + err.message);
-      },
+      next: () =>
+        this.toastr.info('Check your inbox to reset your password.', '📩 Reset Email Sent'),
+      error: (err) => this.toastr.error(err.message, 'Error'),
     });
   }
 
   onLogout(): void {
     this.authService.logout().subscribe({
-      next: () => {
-        this.router.navigate(['/login']);
-      },
-      error: (err) => {
-        console.error('Logout failed:', err);
-        alert('Error logging out: ' + err.message);
-      },
+      next: () => this.router.navigate(['/login']),
+      error: (err) => this.toastr.error(err.message, 'Logout Failed'),
     });
   }
 
   onDeleteAccount(): void {
     if (this.isAdmin) {
-      alert(
-        'Action Blocked: As the Admin of a household, you cannot delete your account directly.\n\nWe will take you to Household Settings now so you can transfer ownership or dissolve the household first.',
+      this.toastr.warning(
+        'As the Admin, you must transfer ownership or dissolve the household before deleting your account.',
+        '⚠️ Action Blocked',
+        { timeOut: 6000 },
       );
       this.router.navigate(['/household-settings']);
       return;
     }
-
     this.deleteAccountErrorMsg = '';
     this.isDeletingAccount = false;
     this.showDeleteAccountModal = true;
@@ -169,7 +250,6 @@ export class ProfileComponent implements OnInit, OnDestroy {
       this.cdr.detectChanges();
       return;
     }
-
     this.isDeletingAccount = true;
     this.deleteAccountErrorMsg = '';
     this.cdr.detectChanges();
@@ -178,13 +258,11 @@ export class ProfileComponent implements OnInit, OnDestroy {
       next: () => {
         this.isDeletingAccount = false;
         this.showDeleteAccountModal = false;
-        alert('Account successfully deleted.');
+        this.toastr.success('Your account has been permanently deleted.', '🗑️ Account Deleted');
         this.router.navigate(['/register']);
       },
       error: (err) => {
         this.isDeletingAccount = false;
-        console.error('Account deletion failed:', err);
-
         if (err.code === 'auth/invalid-credential') {
           this.deleteAccountErrorMsg = 'Incorrect password. Please try again.';
         } else if (err.code === 'auth/requires-recent-login') {
@@ -201,5 +279,6 @@ export class ProfileComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.profileSub?.unsubscribe();
     this.hhSub?.unsubscribe();
+    if (this.streakUnsub) this.streakUnsub();
   }
 }

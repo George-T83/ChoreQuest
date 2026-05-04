@@ -1,256 +1,173 @@
-<div class="app-container">
-  <header class="app-header">
-    <div class="header-left">
-      <h1 class="logo-text">ChoreQuest</h1>
+<main class="main-content">
+  @if (isInitialLoading) {
+    <div class="loading-state">
+      <div class="spinner-large"></div>
+      <p>Syncing with ChoreQuest...</p>
     </div>
-    <div class="header-center">
-      @if (allTasks$ | async; as tasks) {
-        @if (getMyPendingTaskCount(tasks) > 0) {
-          <span class="badge badge--success">
-            {{ getMyPendingTaskCount(tasks) }} task{{
-              getMyPendingTaskCount(tasks) === 1 ? '' : 's'
-            }}
-            assigned to you
-          </span>
-        }
-        @if (getMyOverdueTaskCount(tasks) > 0) {
-          <span class="badge badge--warning">
-            ⚠️ {{ getMyOverdueTaskCount(tasks) }} overdue
-          </span>
-        }
-      }
-    </div>
-    <div class="header-right">
-      <div class="points-counter" title="Your total points">
-        <span class="points-star">⭐</span>
-        <span class="points-value">{{ currentUserPoints }}</span>
-      </div>
-      <div class="profile-menu-container">
-        <div class="avatar" (click)="toggleProfileMenu()" title="Profile Menu">
-          {{
-            (currentUserName || currentUser?.displayName || currentUser?.email || '?')
-              .charAt(0)
-              .toUpperCase()
-          }}
+  } @else {
+    @if (household$ | async; as household) {
+      <div class="household-header card">
+        <div class="hh-info">
+          <h2>{{ household.name }}</h2>
+          <p>
+            {{ household.member_count }} {{ household.member_count === 1 ? 'member' : 'members' }}
+          </p>
         </div>
-        @if (isProfileMenuOpen) {
-          <div class="profile-dropdown card">
-            <div class="dropdown-header">
-              <strong>{{
-                currentUserName || currentUser?.displayName || currentUser?.email || 'My Profile'
-              }}</strong>
-              <p class="dropdown-points">⭐ {{ currentUserPoints }} pts</p>
+        <div class="invite-section">
+          @if (!household.is_full) {
+            <div
+              class="invite-box"
+              (click)="copyInviteCode(household.invite_code)"
+              title="Click to copy"
+            >
+              <span class="invite-label">INVITE CODE</span>
+              <span class="invite-code">{{ household.invite_code }}</span>
+              <span class="copy-hint">📋 Tap to copy & send</span>
             </div>
-            <hr class="dropdown-divider" />
-            <ul class="dropdown-list">
-              <li>
-                <a routerLink="/profile" (click)="isProfileMenuOpen = false">Profile Settings</a>
-              </li>
+          } @else {
+            <div class="badge badge--danger full-badge">Group is Full (6/6)</div>
+          }
+        </div>
+      </div>
 
-              @if (household$ | async) {
-                <li>
-                  <a routerLink="/household-settings" (click)="isProfileMenuOpen = false"
-                    >Household Settings</a
-                  >
-                </li>
+      <div class="filter-toolbar card">
+        <div class="filter-group">
+          <label>Status</label>
+          <select
+            class="filter-select"
+            [(ngModel)]="filterState.status"
+            (change)="onFilterChange()"
+          >
+            <option value="Active">Active</option>
+            <option value="All">All</option>
+            <option value="Pending">Pending (On Time)</option>
+            <option value="Overdue">Overdue ⚠️</option>
+            <option value="Completed">Completed</option>
+          </select>
+        </div>
+
+        <div class="filter-group">
+          <label>Assignee</label>
+          <select
+            class="filter-select"
+            [(ngModel)]="filterState.assignee"
+            (change)="onFilterChange()"
+          >
+            <option value="All">Everyone</option>
+            <option [value]="currentUser?.uid">Assigned to Me</option>
+            @for (member of household.members; track member.id) {
+              @if (member.id !== currentUser?.uid) {
+                <option [value]="member.id">{{ member.display_name }}</option>
               }
-            </ul>
-            <hr class="dropdown-divider" />
-            <ul class="dropdown-list">
-              <li><a class="text-danger" (click)="logout()">Log out</a></li>
-            </ul>
-          </div>
-        }
-      </div>
-    </div>
-  </header>
+            }
+          </select>
+        </div>
 
-  <main class="main-content">
-    @if (isInitialLoading) {
-      <div class="loading-state">
-        <div class="spinner-large"></div>
-        <p>Syncing with ChoreQuest...</p>
+        <div class="filter-group">
+          <label>Difficulty</label>
+          <select
+            class="filter-select"
+            [(ngModel)]="filterState.difficulty"
+            (change)="onFilterChange()"
+          >
+            <option value="All">Any</option>
+            <option value="Easy">Easy</option>
+            <option value="Medium">Medium</option>
+            <option value="Hard">Hard</option>
+          </select>
+        </div>
+
+        <div class="filter-group points-range-group">
+          <label>Points Range</label>
+          <div class="range-inputs">
+            <input
+              type="number"
+              class="filter-input"
+              placeholder="Min"
+              [(ngModel)]="filterState.pointsMin"
+              (ngModelChange)="onFilterChange()"
+              min="0"
+            />
+            <span class="range-separator">-</span>
+            <input
+              type="number"
+              class="filter-input"
+              placeholder="Max"
+              [(ngModel)]="filterState.pointsMax"
+              (ngModelChange)="onFilterChange()"
+              min="0"
+            />
+          </div>
+          @if (
+            filterState.pointsMin !== null &&
+            filterState.pointsMax !== null &&
+            filterState.pointsMin > filterState.pointsMax
+          ) {
+            <span class="filter-error">Max must be ≥ Min</span>
+          }
+        </div>
+
+        <div class="filter-group">
+          <label>Recurring</label>
+          <select
+            class="filter-select"
+            [(ngModel)]="filterState.recurring"
+            (change)="onFilterChange()"
+          >
+            <option value="All">Any</option>
+            <option value="Yes">Recurring</option>
+            <option value="No">One-time</option>
+          </select>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="filter-group">
+          <label>Sort By</label>
+          <select
+            class="filter-select"
+            [(ngModel)]="filterState.sortBy"
+            (change)="onFilterChange()"
+          >
+            <option value="dueDate">Due Date</option>
+            <option value="difficulty">Difficulty</option>
+            <option value="points">Points</option>
+          </select>
+        </div>
+
+        <div class="filter-group">
+          <label>Direction</label>
+          <select
+            class="filter-select"
+            [(ngModel)]="filterState.sortDir"
+            (change)="onFilterChange()"
+          >
+            <option value="asc">Ascending ⬆️</option>
+            <option value="desc">Descending ⬇️</option>
+          </select>
+        </div>
       </div>
+
+      <app-task-list
+        [tasks]="(filteredTasks$ | async) ?? []"
+        [household]="household"
+        [currentUserUid]="currentUser?.uid ?? ''"
+        [isAdmin]="isAdmin(household)"
+        [tasksLoadError]="tasksLoadError"
+        (openCreateTask)="openCreateTask()"
+        (openTask)="openEditTask($event)"
+      />
     } @else {
-      @if (household$ | async; as household) {
-        <div class="household-header card">
-          <div class="hh-info">
-            <h2>{{ household.name }}</h2>
-            <p>
-              {{ household.member_count }} {{ household.member_count === 1 ? 'member' : 'members' }}
-            </p>
-          </div>
-          <div class="invite-section">
-            @if (!household.is_full) {
-              <div
-                class="invite-box"
-                (click)="copyInviteCode(household.invite_code)"
-                title="Click to copy"
-              >
-                <span class="invite-label">INVITE CODE</span>
-                <span class="invite-code">{{ household.invite_code }}</span>
-                <span class="copy-hint">📋 Tap to copy & send</span>
-              </div>
-            } @else {
-              <div class="badge badge--danger full-badge">Group is Full (6/6)</div>
-            }
-          </div>
+      <div class="empty-state card">
+        <h2>You need a Household</h2>
+        <p>Join an existing household or create a new one to get started.</p>
+        <div class="action-buttons">
+          <button class="btn btn--primary" routerLink="/household/create">Create</button>
+          <button class="btn btn--outline-primary" routerLink="/household/join">Join</button>
         </div>
-
-        <div class="filter-toolbar card">
-          <div class="filter-group">
-            <label>Status</label>
-            <select
-              class="filter-select"
-              [(ngModel)]="filterState.status"
-              (change)="onFilterChange()"
-            >
-              <option value="Active">Active</option>
-              <option value="All">All</option>
-              <option value="Pending">Pending (On Time)</option>
-              <option value="Overdue">Overdue ⚠️</option>
-              <option value="Completed">Completed</option>
-            </select>
-          </div>
-
-          <div class="filter-group">
-            <label>Assignee</label>
-            <select
-              class="filter-select"
-              [(ngModel)]="filterState.assignee"
-              (change)="onFilterChange()"
-            >
-              <option value="All">Everyone</option>
-              <option [value]="currentUser?.uid">Assigned to Me</option>
-              @for (member of household.members; track member.id) {
-                @if (member.id !== currentUser?.uid) {
-                  <option [value]="member.id">{{ member.display_name }}</option>
-                }
-              }
-            </select>
-          </div>
-
-          <div class="filter-group">
-            <label>Difficulty</label>
-            <select
-              class="filter-select"
-              [(ngModel)]="filterState.difficulty"
-              (change)="onFilterChange()"
-            >
-              <option value="All">Any</option>
-              <option value="Easy">Easy</option>
-              <option value="Medium">Medium</option>
-              <option value="Hard">Hard</option>
-            </select>
-          </div>
-
-          <div class="filter-group points-range-group">
-            <label>Points Range</label>
-            <div class="range-inputs">
-              <input
-                type="number"
-                class="filter-input"
-                placeholder="Min"
-                [(ngModel)]="filterState.pointsMin"
-                (ngModelChange)="onFilterChange()"
-                min="0"
-              />
-              <span class="range-separator">-</span>
-              <input
-                type="number"
-                class="filter-input"
-                placeholder="Max"
-                [(ngModel)]="filterState.pointsMax"
-                (ngModelChange)="onFilterChange()"
-                min="0"
-              />
-            </div>
-            @if (
-              filterState.pointsMin !== null &&
-              filterState.pointsMax !== null &&
-              filterState.pointsMin > filterState.pointsMax
-            ) {
-              <span class="filter-error">Max must be ≥ Min</span>
-            }
-          </div>
-
-          <div class="filter-group">
-            <label>Recurring</label>
-            <select
-              class="filter-select"
-              [(ngModel)]="filterState.recurring"
-              (change)="onFilterChange()"
-            >
-              <option value="All">Any</option>
-              <option value="Yes">Recurring</option>
-              <option value="No">One-time</option>
-            </select>
-          </div>
-
-          <div class="divider"></div>
-
-          <div class="filter-group">
-            <label>Sort By</label>
-            <select
-              class="filter-select"
-              [(ngModel)]="filterState.sortBy"
-              (change)="onFilterChange()"
-            >
-              <option value="dueDate">Due Date</option>
-              <option value="difficulty">Difficulty</option>
-              <option value="points">Points</option>
-            </select>
-          </div>
-
-          <div class="filter-group">
-            <label>Direction</label>
-            <select
-              class="filter-select"
-              [(ngModel)]="filterState.sortDir"
-              (change)="onFilterChange()"
-            >
-              <option value="asc">Ascending ⬆️</option>
-              <option value="desc">Descending ⬇️</option>
-            </select>
-          </div>
-        </div>
-
-        <app-task-list
-          [tasks]="(filteredTasks$ | async) ?? []"
-          [household]="household"
-          [currentUserUid]="currentUser?.uid ?? ''"
-          [isAdmin]="isAdmin(household)"
-          [tasksLoadError]="tasksLoadError"
-          (openCreateTask)="openCreateTask()"
-          (editTask)="openEditTask($event)"
-        />
-      } @else {
-        <div class="empty-state card">
-          <h2>You need a Household</h2>
-          <p>Join an existing household or create a new one to get started.</p>
-          <div class="action-buttons">
-            <button class="btn btn--primary" routerLink="/household/create">Create</button>
-            <button class="btn btn--outline-primary" routerLink="/household/join">Join</button>
-          </div>
-        </div>
-      }
+      </div>
     }
-  </main>
-
-  <nav class="bottom-nav">
-    <div class="nav-item active">
-      <span class="icon">⊞</span>
-      <span>Dashboard</span>
-    </div>
-    <div class="nav-item">
-      <span class="icon">☐</span>
-      <span>Tasks</span>
-    </div>
-    <div class="nav-item">
-      <span class="icon">↗</span>
-      <span>Leaderboard</span>
-    </div>
-  </nav>
+  }
 
   @if (isCreateTaskOpen) {
     @if (household$ | async; as household) {
@@ -267,8 +184,10 @@
       <app-edit-task
         [task]="taskToEdit"
         [members]="getMembers(household)"
+        [isAdmin]="isAdmin(household)"
         (closed)="closeEditTask()"
+        (taskUpdated)="onTaskUpdated()"
       />
     }
   }
-</div>
+</main>

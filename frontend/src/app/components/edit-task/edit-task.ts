@@ -45,11 +45,13 @@ export class EditTaskComponent implements OnInit {
 
   @Input() task!: Task;
   @Input() members: HouseholdMember[] = [];
+  @Input() isAdmin: boolean = true;
 
   @Output() closed = new EventEmitter<void>();
   @Output() taskUpdated = new EventEmitter<void>();
 
   title = '';
+  description = '';
   assigned_to: string | null = '';
   due_date: string | Date | null = '';
   difficulty: 'Easy' | 'Medium' | 'Hard' | null = 'Easy';
@@ -60,12 +62,14 @@ export class EditTaskComponent implements OnInit {
   isSubmitting = false;
   isDeleting = false;
   isReopening = false;
+  isCompleting = false;
   errorMessage = '';
   showValidationErrors = false;
 
   ngOnInit() {
     if (this.task) {
       this.title = this.task.title;
+      this.description = this.task.description || '';
       this.assigned_to = this.task.assigned_to;
       this.difficulty = this.task.difficulty as 'Easy' | 'Medium' | 'Hard';
       this.points = this.task.points;
@@ -203,17 +207,39 @@ export class EditTaskComponent implements OnInit {
     this.taskService.reopenTask(this.task.id).subscribe({
       next: () => {
         this.isReopening = false;
-        this.toastr.success(
-          `"${this.task.title}" is back in the queue.`,
-          '🔄 Task Reopened',
-          { timeOut: 4000 },
-        );
+        this.toastr.success(`"${this.task.title}" is back in the queue.`, '🔄 Task Reopened', {
+          timeOut: 4000,
+        });
         this.taskUpdated.emit();
         this.close();
       },
       error: (err: Error) => {
         this.isReopening = false;
         this.errorMessage = err.message;
+        this.cdr.detectChanges();
+      },
+    });
+  }
+
+  markAsComplete() {
+    if (this.isCompleting || this.task.status === 'completed') return;
+    this.isCompleting = true;
+    this.errorMessage = '';
+    this.cdr.detectChanges();
+
+    const currentDue = this.task.due_date || '';
+    this.taskService.completeTask(this.task.id, currentDue).subscribe({
+      next: () => {
+        this.isCompleting = false;
+        this.toastr.success(`Great! "${this.task.title}" was marked complete.`, 'Task Completed', {
+          timeOut: 3500,
+        });
+        this.taskUpdated.emit();
+        this.close();
+      },
+      error: (err: Error) => {
+        this.isCompleting = false;
+        this.errorMessage = err.message || 'A network error occurred.';
         this.cdr.detectChanges();
       },
     });
@@ -237,6 +263,7 @@ export class EditTaskComponent implements OnInit {
 
     const payload: Partial<Task> = {
       title,
+      description: this.description.trim() || undefined,
       assigned_to: assignedTo,
       due_date: dueDate,
       difficulty,
@@ -248,7 +275,7 @@ export class EditTaskComponent implements OnInit {
     this.taskService.updateTask(this.task.id, payload).subscribe({
       next: () => {
         this.isSubmitting = false;
-        this.toastr.success('Task details have been updated.', '✅ Changes Saved', {
+        this.toastr.success('Task details have been updated.', 'Changes Saved', {
           timeOut: 3500,
         });
         this.taskUpdated.emit();
@@ -260,6 +287,67 @@ export class EditTaskComponent implements OnInit {
         this.cdr.detectChanges();
       },
     });
+  }
+
+  getMemberName(uid: string): string {
+    const member = this.members.find((m) => m.id === uid);
+    return member ? member.display_name : 'Unknown';
+  }
+
+  formatDueDate(dueDateStr: string | null): string {
+    if (!dueDateStr) return 'No due date';
+    const due = new Date(dueDateStr);
+    if (isNaN(due.getTime())) return 'Invalid date';
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    due.setHours(0, 0, 0, 0);
+    const diff = (due.getTime() - today.getTime()) / (1000 * 60 * 60 * 24);
+    if (diff < 0)
+      return `Was due: ${due.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+    if (diff === 0) return 'Today';
+    if (diff === 1) return 'Tomorrow';
+    return due.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  }
+
+  private isTooEarly(dueDateStr: string | null, intervalDays: number | null | undefined): boolean {
+    if (!dueDateStr || !intervalDays) return false;
+    const currentDueDate = new Date(dueDateStr);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    currentDueDate.setHours(0, 0, 0, 0);
+    if (intervalDays === 1) {
+      return currentDueDate.getTime() > today.getTime();
+    }
+    const cycleStartDate = new Date(currentDueDate);
+    cycleStartDate.setDate(currentDueDate.getDate() - intervalDays);
+    return today.getTime() < cycleStartDate.getTime();
+  }
+
+  isCooldown(task: Task): boolean {
+    return this.isTooEarly(task.due_date, task.recurrence_interval_days) && !!task.completed_at;
+  }
+
+  isOverdue(task: Task): boolean {
+    if (!task.due_date || task.status === 'completed') return false;
+    const due = new Date(task.due_date);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    due.setHours(0, 0, 0, 0);
+    return (due.getTime() - today.getTime()) / (1000 * 60 * 60 * 24) < 0;
+  }
+
+  getStatusText(task: Task): string {
+    if (task.status === 'completed') return 'Completed';
+    if (this.isOverdue(task)) return 'Overdue';
+    if (this.isCooldown(task)) return 'Not Due Yet';
+    return 'Active';
+  }
+
+  getStatusClass(task: Task): string {
+    if (task.status === 'completed') return 'status-badge--completed';
+    if (this.isOverdue(task)) return 'status-badge--overdue';
+    if (this.isCooldown(task)) return 'status-badge--not-due';
+    return 'status-badge--active';
   }
 
   close() {
