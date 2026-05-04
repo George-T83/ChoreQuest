@@ -141,28 +141,46 @@
               }
             </div>
           } @else {
-            @if (isCompleted(task)) {
-              <button class="btn-complete" disabled>Done</button>
-            } @else if (isAssignedToMe(task.assigned_to)) {
+            <div class="task-actions">
               <button
-                class="btn-complete standalone"
-                [class.btn-complete--locked]="isCooldown(task) || isFutureLocked(task)"
-                [disabled]="
-                  processingTaskIds.has(task.id) || isCooldown(task) || isFutureLocked(task)
-                "
-                (click)="onComplete(task.id)"
+                class="btn-icon btn-view"
+                title="View Task Details"
+                (click)="onEditTask(task)"
+                [disabled]="processingTaskIds.has(task.id)"
               >
-                {{
-                  processingTaskIds.has(task.id)
-                    ? 'Completing...'
-                    : isCooldown(task) || isFutureLocked(task)
-                      ? 'Not Due Yet'
-                      : 'Complete'
-                }}
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                  <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
+                  <path
+                    fill-rule="evenodd"
+                    d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z"
+                    clip-rule="evenodd"
+                  />
+                </svg>
               </button>
-            } @else {
-              <button class="btn-complete btn-complete--locked" disabled>Locked</button>
-            }
+
+              @if (isCompleted(task)) {
+                <button class="btn-complete" disabled>Done</button>
+              } @else if (isAssignedToMe(task.assigned_to)) {
+                <button
+                  class="btn-complete"
+                  [class.btn-complete--locked]="isCooldown(task) || isFutureLocked(task)"
+                  [disabled]="
+                    processingTaskIds.has(task.id) || isCooldown(task) || isFutureLocked(task)
+                  "
+                  (click)="onComplete(task.id)"
+                >
+                  {{
+                    processingTaskIds.has(task.id)
+                      ? 'Completing...'
+                      : isCooldown(task) || isFutureLocked(task)
+                        ? 'Not Due Yet'
+                        : 'Complete'
+                  }}
+                </button>
+              } @else {
+                <button class="btn-complete btn-complete--locked" disabled>Locked</button>
+              }
+            </div>
           }
         </div>
       }
