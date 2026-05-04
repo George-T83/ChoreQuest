@@ -12,6 +12,7 @@
       </div>
     } @else {
       <div class="settings-stack">
+        <!-- Profile header -->
         <div class="profile-header card">
           <div class="avatar-large">{{ initials || '?' }}</div>
           <div class="user-info">
@@ -26,6 +27,7 @@
           </div>
         </div>
 
+        <!-- Stats strip -->
         <div class="stats-strip">
           <div class="stat-item">
             <span class="stat-value">{{ totalPoints }}</span>
@@ -36,11 +38,40 @@
             <span class="stat-label">Leaderboard Rank</span>
           </div>
           <div class="stat-item">
-            <span class="stat-value">{{ currentStreak }}</span>
+            <span class="stat-value">
+              @if (currentStreak > 0) {
+                {{ streakDisplay }}
+              } @else {
+                —
+              }
+            </span>
             <span class="stat-label">Current Streak</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-value">{{ totalTasksCompleted }}</span>
+            <span class="stat-label">Tasks Completed</span>
           </div>
         </div>
 
+        <!-- Badges section -->
+        @if (currentBadges.length > 0) {
+          <div class="badges-section card">
+            <p class="section-label-alone">BADGES</p>
+            <div class="badges-grid">
+              @for (badge of currentBadges; track badge.category) {
+                <div class="badge-card">
+                  <div class="badge-card-emoji">{{ badge.emoji }}</div>
+                  <div class="badge-card-body">
+                    <span class="badge-card-label">{{ badge.label }}</span>
+                    <span class="badge-card-desc">{{ badge.tooltip }}</span>
+                  </div>
+                </div>
+              }
+            </div>
+          </div>
+        }
+
+        <!-- Display name -->
         <div class="settings-section card">
           <div class="section-header">
             <label>DISPLAY NAME</label>
@@ -58,6 +89,7 @@
           </form>
         </div>
 
+        <!-- Account -->
         <div class="account-section card">
           <label class="section-label-alone">ACCOUNT</label>
           <button class="menu-item" (click)="onChangePassword()">
@@ -68,6 +100,7 @@
           </button>
         </div>
 
+        <!-- Danger zone -->
         <div class="danger-zone-section card">
           <label class="danger-label">DANGER ZONE</label>
           <div class="danger-box">

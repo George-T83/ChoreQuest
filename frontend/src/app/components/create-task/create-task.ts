@@ -1,7 +1,6 @@
 import { Component, inject, Input, Output, EventEmitter, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { ToastrService } from 'ngx-toastr';
 import { TaskService } from '../../services/task';
 import { HouseholdMember } from '../../models/household';
 import { CreateTaskPayload } from '../../models/task';
@@ -38,7 +37,6 @@ export class CreateTaskComponent implements OnInit {
   @Output() taskCreated = new EventEmitter<void>();
 
   title = '';
-  description = '';
   assigned_to: string | null = '';
   due_date: string | Date | null = '';
   difficulty: 'Easy' | 'Medium' | 'Hard' | null = 'Easy';
@@ -47,9 +45,15 @@ export class CreateTaskComponent implements OnInit {
   recurrence_interval_days: number | null = 7;
 
   isSubmitting = false;
+  errorMessage = '';
   showValidationErrors = false;
 
-  private toastr = inject(ToastrService);
+  /** Minimum selectable date — today, no past dates allowed */
+  readonly minDate: Date = (() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d;
+  })();
 
   ngOnInit() {
     this.due_date = new Date();
@@ -90,6 +94,12 @@ export class CreateTaskComponent implements OnInit {
 
   getNormalizedDueDate(): string | null {
     if (this.due_date instanceof Date) {
+      // Reject past dates
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const selected = new Date(this.due_date);
+      selected.setHours(0, 0, 0, 0);
+      if (selected < today) return null;
       return this.getLocalDateString(this.due_date);
     }
     if (typeof this.due_date === 'string' && this.due_date.trim().length > 0) {
@@ -142,20 +152,14 @@ export class CreateTaskComponent implements OnInit {
     if (this.isSubmitting) return;
 
     this.isSubmitting = true;
-
-    const title = this.getNormalizedTitle()!;
-    const assignedTo = this.getNormalizedAssignedTo()!;
-    const dueDate = this.getNormalizedDueDate()!;
-    const difficulty = this.getNormalizedDifficulty()!;
-    const points = this.getNormalizedPoints()!;
+    this.errorMessage = '';
 
     const payload: CreateTaskPayload = {
-      title,
-      description: this.description.trim() || undefined,
-      assigned_to: assignedTo,
-      due_date: dueDate,
-      difficulty,
-      points,
+      title: this.getNormalizedTitle()!,
+      assigned_to: this.getNormalizedAssignedTo()!,
+      due_date: this.getNormalizedDueDate()!,
+      difficulty: this.getNormalizedDifficulty()!,
+      points: this.getNormalizedPoints()!,
       is_recurring: this.is_recurring,
       recurrence_interval_days: this.is_recurring ? this.getNormalizedRecurrenceInterval() : null,
     };
@@ -163,13 +167,12 @@ export class CreateTaskComponent implements OnInit {
     this.taskService.createTask(payload).subscribe({
       next: () => {
         this.isSubmitting = false;
-        this.toastr.success(`"${title}" has been added to the board.`, 'Task Created');
         this.taskCreated.emit();
         this.close();
       },
       error: (err: Error) => {
         this.isSubmitting = false;
-        this.toastr.error(err.message, 'Create Failed');
+        this.errorMessage = err.message;
       },
     });
   }

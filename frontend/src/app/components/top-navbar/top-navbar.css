@@ -249,3 +249,51 @@
 .pill--warning {
   background: linear-gradient(180deg, #fb7185, #ef4444);
 }
+
+.streak-counter {
+  display: flex;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 1rem;
+  padding: 0.25rem 0.65rem;
+  cursor: default;
+}
+
+.streak-display {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: white;
+  white-space: nowrap;
+}
+
+.dropdown-streak {
+  margin: 0.2rem 0 0;
+  font-size: 0.78rem;
+  color: #d97706;
+  font-weight: 600;
+}
+
+.dropdown-badges {
+  display: flex;
+  gap: 0.3rem;
+  margin-top: 0.3rem;
+}
+
+.dropdown-badge-icon {
+  font-size: 1rem;
+  cursor: default;
+  line-height: 1;
+}
+
+.header-badge-icons {
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+}
+
+.header-badge-icon {
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: default;
+}

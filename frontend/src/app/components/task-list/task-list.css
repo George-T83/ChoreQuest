@@ -375,4 +375,19 @@
     color: #0284c7;
     border: 1px solid rgba(14, 165, 233, 0.3);
   }
+
+  .assignee-streak {
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: #d97706;
+    margin-left: 0.25rem;
+    white-space: nowrap;
+  }
+
+  .assignee-badge-icon {
+    font-size: 0.85rem;
+    margin-left: 0.2rem;
+    cursor: default;
+    line-height: 1;
+  }
 }
