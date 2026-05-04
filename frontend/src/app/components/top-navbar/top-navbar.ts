@@ -15,6 +15,7 @@ import { Auth } from '@angular/fire/auth';
 import { Firestore, doc, onSnapshot } from '@angular/fire/firestore';
 import { TaskService } from '../../services/task';
 import { Subscription } from 'rxjs';
+import { Badge, computeBadges, formatStreak } from '../../utils/badge';
 
 @Component({
   selector: 'app-top-navbar',
@@ -35,6 +36,8 @@ export class TopNavbarComponent implements OnInit, OnDestroy {
   currentUser: any = null;
   currentUserPoints = 0;
   currentUserName: string | null = null;
+  currentUserStreak = 0;
+  currentUserBadges: Badge[] = [];
   isProfileMenuOpen = false;
 
   tasksAssignedCount = 0;
@@ -43,11 +46,19 @@ export class TopNavbarComponent implements OnInit, OnDestroy {
   private pointsUnsubscribe: (() => void) | null = null;
   private tasksSub: Subscription | null = null;
 
+  get streakDisplay(): string {
+    return formatStreak(this.currentUserStreak);
+  }
+
   ngOnInit(): void {
     this.auth.onAuthStateChanged((user) => {
       this.currentUser = user;
       if (user) {
-        this.subscribeToUserPoints(user.uid);
+        this.subscribeToUserData(user.uid);
+        // Run overdue streak check for all household members silently on load
+        this.taskService.checkOverdueStreaks().subscribe({
+          error: (err) => console.warn('Overdue streak check failed:', err),
+        });
       }
       this.cdr.detectChanges();
     });
@@ -81,7 +92,7 @@ export class TopNavbarComponent implements OnInit, OnDestroy {
     });
   }
 
-  private subscribeToUserPoints(uid: string): void {
+  private subscribeToUserData(uid: string): void {
     if (this.pointsUnsubscribe) {
       this.pointsUnsubscribe();
     }
@@ -92,6 +103,9 @@ export class TopNavbarComponent implements OnInit, OnDestroy {
         const data = snapshot.data();
         this.currentUserPoints = data['points'] ?? 0;
         this.currentUserName = data['display_name'] || null;
+        this.currentUserStreak = data['streak'] ?? 0;
+        const totalTasks = data['total_tasks_completed'] ?? 0;
+        this.currentUserBadges = computeBadges(totalTasks, this.currentUserPoints);
         this.cdr.detectChanges();
       }
     });
@@ -104,10 +118,8 @@ export class TopNavbarComponent implements OnInit, OnDestroy {
   @HostListener('document:click', ['$event'])
   onDocumentClick(event: MouseEvent): void {
     if (!this.isProfileMenuOpen) return;
-
     const target = event.target as HTMLElement | null;
     if (!target) return;
-
     if (!target.closest('.profile-menu-container')) {
       this.isProfileMenuOpen = false;
       this.cdr.detectChanges();

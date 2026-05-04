@@ -1,9 +1,10 @@
-import { Component, Input, Output, EventEmitter } from '@angular/core';
+import { Component, Input, Output, EventEmitter, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ToastrService } from 'ngx-toastr';
 import { Task } from '../../models/task';
 import { Household } from '../../models/household';
 import { TaskService } from '../../services/task';
+import { MemberStats } from '../../utils/member-stats';
 
 @Component({
   selector: 'app-task-list',
@@ -18,22 +19,15 @@ export class TaskListComponent {
   @Input() currentUserUid: string = '';
   @Input() isAdmin: boolean = false;
   @Input() tasksLoadError: string = '';
-
-  // FIXED: Added @Input() decorator
   @Input() processingTaskIds: Set<string> = new Set<string>();
+  @Input() memberStatsMap: Map<string, MemberStats> = new Map();
 
   @Output() openCreateTask = new EventEmitter<void>();
-
-  // FIXED: Renamed back to editTask to match dashboard bindings
   @Output() editTask = new EventEmitter<Task>();
-
-  // FIXED: Added dummy completeTask output to satisfy dashboard.html binding
   @Output() completeTask = new EventEmitter<string>();
 
-  constructor(
-    private taskService: TaskService,
-    private toastr: ToastrService,
-  ) {}
+  private taskService = inject(TaskService);
+  private toastr = inject(ToastrService);
 
   isAssignedToMe(assignedTo: string): boolean {
     return assignedTo === this.currentUserUid;
@@ -69,6 +63,10 @@ export class TaskListComponent {
     if (!this.household?.members) return 'Unknown';
     const member = this.household.members.find((m) => m.id === uid);
     return member ? member.display_name : 'Unknown';
+  }
+
+  getMemberStats(uid: string): MemberStats | null {
+    return this.memberStatsMap.get(uid) ?? null;
   }
 
   formatDueDate(dueDateStr: string | null): string {
@@ -133,9 +131,7 @@ export class TaskListComponent {
             { enableHtml: true },
           );
         } else {
-          this.toastr.success('Chore cleared from the board.', 'Done!', {
-            enableHtml: true,
-          });
+          this.toastr.success('Chore cleared from the board.', 'Done!', { enableHtml: true });
         }
       },
       error: (err: Error) => {

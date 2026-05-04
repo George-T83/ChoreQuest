@@ -11,6 +11,10 @@
     </div>
 
     <div class="modal-body">
+      @if (errorMessage) {
+        <div class="error-banner">{{ errorMessage }}</div>
+      }
+
       <!-- Title -->
       <div class="form-group">
         <label for="task-title">Task Title</label>
@@ -28,23 +32,6 @@
         @if (showValidationErrors && getNormalizedTitle() === null) {
           <p class="field-error-text">Task title is required.</p>
         }
-      </div>
-
-      <!-- Description -->
-      <div class="form-group">
-        <label for="task-description"
-          >Description <span class="optional-label">(optional)</span></label
-        >
-        <mat-form-field appearance="outline" class="material-field no-floating-label">
-          <textarea
-            matInput
-            id="task-description"
-            [(ngModel)]="description"
-            placeholder="Add details or instructions for this chore..."
-            rows="3"
-            maxlength="500"
-          ></textarea>
-        </mat-form-field>
       </div>
 
       <!-- Assign To -->
@@ -68,7 +55,7 @@
         }
       </div>
 
-      <!-- Due Date -->
+      <!-- Due Date — min set to today, past dates greyed out -->
       <div class="form-group">
         <label for="task-due">Due Date</label>
         <mat-form-field appearance="outline" class="material-field no-floating-label">
@@ -76,6 +63,7 @@
             matInput
             id="task-due"
             [matDatepicker]="picker"
+            [min]="minDate"
             [(ngModel)]="due_date"
             readonly
             (click)="picker.open()"
@@ -85,7 +73,7 @@
           <mat-datepicker #picker></mat-datepicker>
         </mat-form-field>
         @if (showValidationErrors && getNormalizedDueDate() === null) {
-          <p class="field-error-text">Please select a valid due date.</p>
+          <p class="field-error-text">Please select a valid due date (today or later).</p>
         }
       </div>
 
@@ -162,7 +150,7 @@
                 class="material-field"
               />
             </mat-form-field>
-            <span class="recurring-interval-text">day(s)</span>
+            <span class="recurring-interval-text">days</span>
           </div>
           @if (showValidationErrors && getRecurrenceErrorMessage() !== null) {
             <p class="field-error-text">{{ getRecurrenceErrorMessage() }}</p>

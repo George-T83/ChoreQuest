@@ -1,16 +1,16 @@
 /* Toolbar & Sleek View History Button */
 .leaderboard-toolbar {
   display: flex;
-  justify-content: center; /* Centers the button above the podium */
+  justify-content: center;
   padding-top: 16px;
-  gap: 12px; /* Added gap to space the two buttons */
+  gap: 12px;
 }
 
 .btn-history {
   background: rgba(95, 85, 210, 0.1);
   color: #5f55d2;
   border: none;
-  border-radius: 99px; /* Pill shape */
+  border-radius: 99px;
   padding: 8px 18px;
   font-size: 0.85rem;
   font-weight: 700;
@@ -23,7 +23,7 @@
 
 .btn-history:hover {
   background: rgba(95, 85, 210, 0.2);
-  transform: translateY(-2px); /* Gentle lift effect */
+  transform: translateY(-2px);
 }
 
 .btn-history .icon {
@@ -31,8 +31,8 @@
 }
 
 .btn-reset {
-  background: rgba(220, 38, 38, 0.1); /* Light red background */
-  color: #dc2626; /* Deep red text */
+  background: rgba(220, 38, 38, 0.1);
+  color: #dc2626;
   border: none;
   border-radius: 99px;
   padding: 8px 18px;
@@ -66,7 +66,7 @@
   justify-content: center;
   align-items: flex-end;
   gap: 16px;
-  margin: 16px 16px 32px 16px; /* Adjusted margin for the new button placement */
+  margin: 16px 16px 32px 16px;
 }
 
 .podium-wrapper--compact {
@@ -235,11 +235,21 @@
   align-items: center;
   font-weight: bold;
   font-size: 0.85rem;
+  flex-shrink: 0;
 }
 
 .member-info {
   display: flex;
   flex-direction: column;
+  gap: 0.15rem;
+}
+
+/* Name row: name + streak pill + badge icons inline */
+.member-name-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
 }
 
 .member-name {
@@ -248,12 +258,34 @@
   font-size: 0.95rem;
 }
 
+/* Streak pill — amber, matches navbar/task-list style */
+.member-streak-pill {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #d97706;
+  background: rgba(251, 191, 36, 0.12);
+  border: 1px solid rgba(251, 191, 36, 0.3);
+  border-radius: 9999px;
+  padding: 0.1rem 0.45rem;
+  white-space: nowrap;
+  cursor: default;
+}
+
+/* Badge medal icons inline with name */
+.member-badge-icon {
+  font-size: 0.95rem;
+  line-height: 1;
+  cursor: default;
+}
+
+/* No activity subtitle */
 .member-streak {
   font-size: 0.75rem;
   color: #8e98a8;
 }
 
 .member-streak.no-activity {
+  font-size: 0.75rem;
   color: #dc2626;
 }
 

@@ -6,6 +6,7 @@ import { Auth } from '@angular/fire/auth';
 import { ToastrService } from 'ngx-toastr';
 import { LeaderboardHistoryComponent } from '../leaderboard-history/leaderboard-history';
 import { LeaderboardService } from '../../services/leaderboard';
+import { Badge, computeBadges, formatStreak } from '../../utils/badge';
 
 export interface HouseholdMember {
   id: string;
@@ -14,8 +15,10 @@ export interface HouseholdMember {
   initials: string;
   points: number;
   streak: number;
+  streakDisplay: string;
   totalTasksCompleted: number;
   statusBadge: 'MVP' | 'On fire' | 'You' | 'No activity' | null;
+  badges: Badge[];
 }
 
 @Component({
@@ -195,15 +198,9 @@ export class LeaderboardComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
-    if (this.unsubscribeMembers) {
-      this.unsubscribeMembers();
-    }
-    if (this.unsubscribeHousehold) {
-      this.unsubscribeHousehold();
-    }
-    if (this.authUnsubscribe) {
-      this.authUnsubscribe();
-    }
+    if (this.unsubscribeMembers) this.unsubscribeMembers();
+    if (this.unsubscribeHousehold) this.unsubscribeHousehold();
+    if (this.authUnsubscribe) this.authUnsubscribe();
   }
 
   private mapToHouseholdMember(data: any): HouseholdMember {
@@ -211,16 +208,21 @@ export class LeaderboardComponent implements OnInit, OnDestroy {
     const nameParts = rawName.split(/[ ._]/);
     const first = nameParts[0];
     const last = nameParts.length > 1 ? nameParts[nameParts.length - 1] : '';
+    const streak = data.streak || 0;
+    const points = data.points || 0;
+    const totalTasksCompleted = data.total_tasks_completed || 0;
 
     return {
       id: data.uid || data.id || '',
       firstName: first,
       lastName: last,
       initials: `${first.charAt(0)}${last ? last.charAt(0) : ''}`.toUpperCase(),
-      points: data.points || 0,
-      streak: data.streak || 0,
-      totalTasksCompleted: data.total_tasks_completed || 0,
+      points,
+      streak,
+      streakDisplay: formatStreak(streak),
+      totalTasksCompleted,
       statusBadge: null,
+      badges: computeBadges(totalTasksCompleted, points),
     };
   }
 }
