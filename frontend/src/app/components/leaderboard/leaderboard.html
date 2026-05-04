@@ -1,0 +1,93 @@
+<section class="leaderboard-section">
+  <div class="leaderboard-container">
+    <!-- For 3+ members: normal left-to-right (2, 1, 3) -->
+    <div class="podium-wrapper" *ngIf="topThree.length > 2">
+      <div class="podium-pillar rank-2" *ngIf="topThree.length > 1">
+        <div class="avatar">{{ topThree[1].initials }}</div>
+        <div class="pillar-block">#2</div>
+        <div class="podium-name">{{ topThree[1].firstName }}</div>
+        <div class="podium-pts">{{ topThree[1].points }} pts</div>
+      </div>
+
+      <div class="podium-pillar rank-1" *ngIf="topThree.length > 0">
+        <div class="star">★</div>
+        <div class="avatar">{{ topThree[0].initials }}</div>
+        <div class="pillar-block">#1</div>
+        <div class="podium-name">{{ topThree[0].firstName }}</div>
+        <div class="podium-pts top-pts">{{ topThree[0].points }} pts</div>
+      </div>
+
+      <div class="podium-pillar rank-3" *ngIf="topThree.length > 2">
+        <div class="avatar">{{ topThree[2].initials }}</div>
+        <div class="pillar-block">#3</div>
+        <div class="podium-name">{{ topThree[2].firstName }}</div>
+        <div class="podium-pts">{{ topThree[2].points }} pts</div>
+      </div>
+    </div>
+
+    <!-- For 2 or fewer members: 1 comes first -->
+    <div
+      class="podium-wrapper podium-wrapper--compact"
+      *ngIf="topThree.length > 0 && topThree.length <= 2"
+    >
+      <div class="podium-pillar rank-1" *ngIf="topThree.length > 0">
+        <div class="star">★</div>
+        <div class="avatar">{{ topThree[0].initials }}</div>
+        <div class="pillar-block">#1</div>
+        <div class="podium-name">{{ topThree[0].firstName }}</div>
+        <div class="podium-pts top-pts">{{ topThree[0].points }} pts</div>
+      </div>
+
+      <div class="podium-pillar rank-2" *ngIf="topThree.length > 1">
+        <div class="avatar">{{ topThree[1].initials }}</div>
+        <div class="pillar-block">#2</div>
+        <div class="podium-name">{{ topThree[1].firstName }}</div>
+        <div class="podium-pts">{{ topThree[1].points }} pts</div>
+      </div>
+    </div>
+
+    <section class="all-members-section">
+      <h3 class="section-title">ALL MEMBERS</h3>
+
+      <div class="members-list">
+        <div class="member-row" *ngFor="let member of allMembers; let i = index">
+          <div class="member-left">
+            <span class="rank-number" [class.top-rank]="i === 0">{{ i + 1 }}</span>
+            <div class="avatar">{{ member.initials }}</div>
+            <div class="member-info">
+              <div class="member-name">{{ member.firstName }} {{ member.lastName }}</div>
+              <div class="member-streak" [class.no-activity]="member.statusBadge === 'No activity'">
+                <span *ngIf="member.statusBadge !== 'No activity'"
+                  >{{ member.streak }} day streak</span
+                >
+                <span *ngIf="member.statusBadge === 'No activity'">No activity</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="member-right">
+            <div class="member-pts" [class.top-pts]="i === 0">{{ member.points }} pts</div>
+            <div
+              class="badge"
+              *ngIf="member.statusBadge && member.statusBadge !== 'No activity'"
+              [attr.data-badge]="member.statusBadge"
+            >
+              {{ member.statusBadge }}
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div class="stats-strip">
+      <div class="stat-card">
+        <div class="stat-value">{{ totalChoresCompleted }}</div>
+        <div class="stat-label">Chores completed this week</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">{{ topStreakDays }}d</div>
+        <div class="stat-label">Top streak ({{ topStreakHolder || 'None' }})</div>
+      </div>
+    </div>
+  </div>
+</section>

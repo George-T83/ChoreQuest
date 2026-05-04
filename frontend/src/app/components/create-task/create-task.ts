@@ -1,6 +1,7 @@
 import { Component, inject, Input, Output, EventEmitter, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { ToastrService } from 'ngx-toastr';
 import { TaskService } from '../../services/task';
 import { HouseholdMember } from '../../models/household';
 import { CreateTaskPayload } from '../../models/task';
@@ -37,6 +38,7 @@ export class CreateTaskComponent implements OnInit {
   @Output() taskCreated = new EventEmitter<void>();
 
   title = '';
+  description = '';
   assigned_to: string | null = '';
   due_date: string | Date | null = '';
   difficulty: 'Easy' | 'Medium' | 'Hard' | null = 'Easy';
@@ -45,8 +47,9 @@ export class CreateTaskComponent implements OnInit {
   recurrence_interval_days: number | null = 7;
 
   isSubmitting = false;
-  errorMessage = '';
   showValidationErrors = false;
+
+  private toastr = inject(ToastrService);
 
   ngOnInit() {
     this.due_date = new Date();
@@ -139,7 +142,6 @@ export class CreateTaskComponent implements OnInit {
     if (this.isSubmitting) return;
 
     this.isSubmitting = true;
-    this.errorMessage = '';
 
     const title = this.getNormalizedTitle()!;
     const assignedTo = this.getNormalizedAssignedTo()!;
@@ -149,6 +151,7 @@ export class CreateTaskComponent implements OnInit {
 
     const payload: CreateTaskPayload = {
       title,
+      description: this.description.trim() || undefined,
       assigned_to: assignedTo,
       due_date: dueDate,
       difficulty,
@@ -160,12 +163,13 @@ export class CreateTaskComponent implements OnInit {
     this.taskService.createTask(payload).subscribe({
       next: () => {
         this.isSubmitting = false;
+        this.toastr.success(`"${title}" has been added to the board.`, 'Task Created');
         this.taskCreated.emit();
         this.close();
       },
       error: (err: Error) => {
         this.isSubmitting = false;
-        this.errorMessage = err.message;
+        this.toastr.error(err.message, 'Create Failed');
       },
     });
   }
