@@ -87,13 +87,14 @@
                   <span class="tag tag--danger">Late! −{{ task.points_deducted }} pts</span>
                 }
                 @if (task.points > 0) {
-                  <span class="tag tag--points-earned"
-                    >+{{ task.points - (task.points_deducted ?? 0) }} pts earned</span
-                  >
+                  <span class="tag tag--points-earned">
+                    +{{ task.points - (task.points_deducted ?? 0) }} pts earned
+                  </span>
                 }
               </div>
             }
 
+            <!-- Assignee row — name only, no streak/badges -->
             <div class="assignee-badge">
               <div class="assignee-avatar">
                 {{ getMemberName(task.assigned_to).charAt(0).toUpperCase() }}

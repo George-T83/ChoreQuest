@@ -35,9 +35,7 @@ export class TaskService {
       .pipe(
         tap((response) => {
           const currentTasks = this._tasks$.getValue();
-          const updatedTasks = currentTasks.map((t) =>
-            t.id === taskId ? response.task : t
-          );
+          const updatedTasks = currentTasks.map((t) => (t.id === taskId ? response.task : t));
           this._tasks$.next(updatedTasks);
         }),
         catchError(this.handleError),
@@ -48,9 +46,7 @@ export class TaskService {
     return this.http.patch<Task>(`${API_BASE}/${taskId}/update/`, payload).pipe(
       tap((updatedTask) => {
         const currentTasks = this._tasks$.getValue();
-        const updatedTasksList = currentTasks.map((t) =>
-          t.id === taskId ? updatedTask : t
-        );
+        const updatedTasksList = currentTasks.map((t) => (t.id === taskId ? updatedTask : t));
         this._tasks$.next(updatedTasksList);
       }),
       catchError(this.handleError),
@@ -71,11 +67,21 @@ export class TaskService {
     return this.http.delete<void>(`${API_BASE}/${taskId}/delete/`).pipe(
       tap(() => {
         const currentTasks = this._tasks$.getValue();
-        const updatedTasksList = currentTasks.filter((t) => t.id !== taskId);
-        this._tasks$.next(updatedTasksList);
+        this._tasks$.next(currentTasks.filter((t) => t.id !== taskId));
       }),
       catchError(this.handleError),
     );
+  }
+
+  /**
+   * Checks all pending overdue tasks in the household and resets streaks
+   * for any member (not just the current user) who has overdue tasks.
+   * Safe to call on every page load — only resets streaks that are > 0.
+   */
+  checkOverdueStreaks(): Observable<{ detail: string; reset_count: number }> {
+    return this.http
+      .post<{ detail: string; reset_count: number }>(`${API_BASE}/check-overdue-streaks/`, {})
+      .pipe(catchError(this.handleError));
   }
 
   clearTasks(): void {

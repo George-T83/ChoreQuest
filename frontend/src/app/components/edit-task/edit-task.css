@@ -104,6 +104,38 @@
   font-weight: 500;
 }
 
+.locked-form-banner {
+  background: rgba(245, 158, 11, 0.1);
+  color: #b45309;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.locked-icon {
+  font-size: 1rem;
+}
+
+/* Locked Form Styling */
+.locked-form .mat-mdc-text-field-wrapper,
+.locked-form .recurring-group,
+.locked-form .difficulty-toggle-group .mat-button-toggle:not(.mat-button-toggle-checked) {
+  background-color: #f3f4f6 !important;
+  opacity: 0.8;
+}
+
+.locked-form input,
+.locked-form textarea,
+.locked-form .mat-mdc-select-value-text,
+.locked-form .difficulty-toggle-group .mat-button-toggle:not(.mat-button-toggle-checked) .mat-button-toggle-label-content {
+  color: #6b7280 !important;
+}
+
 .form-group {
   display: flex;
   flex-direction: column;

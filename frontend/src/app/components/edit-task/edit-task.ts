@@ -49,6 +49,7 @@ export class EditTaskComponent implements OnInit {
 
   @Output() closed = new EventEmitter<void>();
   @Output() taskUpdated = new EventEmitter<void>();
+  @Output() taskCopied = new EventEmitter<Partial<Task>>();
 
   title = '';
   description = '';
@@ -58,6 +59,8 @@ export class EditTaskComponent implements OnInit {
   points: number | null = 10;
   is_recurring = false;
   recurrence_interval_days: number | null = 7;
+
+  minDate = new Date();
 
   isSubmitting = false;
   isDeleting = false;
@@ -122,9 +125,25 @@ export class EditTaskComponent implements OnInit {
 
   getNormalizedDueDate(): string | null {
     if (this.due_date instanceof Date) {
+      // Check if it's a valid date and not before today
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const selected = new Date(this.due_date);
+      selected.setHours(0, 0, 0, 0);
+      if (selected.getTime() < today.getTime()) {
+        return null; // Invalid due date
+      }
       return this.getLocalDateString(this.due_date);
     }
     if (typeof this.due_date === 'string' && this.due_date.trim().length > 0) {
+      // Check string date
+      const selected = new Date(this.due_date.split('T')[0]);
+      selected.setHours(0, 0, 0, 0);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      if (selected.getTime() < today.getTime()) {
+        return null;
+      }
       return this.due_date;
     }
     return null;
@@ -168,6 +187,21 @@ export class EditTaskComponent implements OnInit {
 
   get isBusy(): boolean {
     return this.isSubmitting || this.isDeleting || this.isReopening;
+  }
+
+  get isLocked(): boolean {
+    return this.task.status === 'completed' && !this.task.is_recurring;
+  }
+
+  onCopy() {
+    this.taskCopied.emit({
+      title: this.title,
+      description: this.description,
+      difficulty: this.difficulty as 'Easy' | 'Medium' | 'Hard',
+      points: this.points || undefined,
+      assigned_to: this.assigned_to || undefined,
+    });
+    this.close();
   }
 
   deleteTask() {

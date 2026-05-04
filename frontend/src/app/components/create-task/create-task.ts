@@ -1,10 +1,9 @@
 import { Component, inject, Input, Output, EventEmitter, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { ToastrService } from 'ngx-toastr';
 import { TaskService } from '../../services/task';
 import { HouseholdMember } from '../../models/household';
-import { CreateTaskPayload } from '../../models/task';
+import { CreateTaskPayload, Task } from '../../models/task';
 import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatInputModule } from '@angular/material/input';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -34,6 +33,7 @@ export class CreateTaskComponent implements OnInit {
   private taskService = inject(TaskService);
 
   @Input() members: HouseholdMember[] = [];
+  @Input() template: Partial<Task> | null = null;
   @Output() closed = new EventEmitter<void>();
   @Output() taskCreated = new EventEmitter<void>();
 
@@ -47,12 +47,30 @@ export class CreateTaskComponent implements OnInit {
   recurrence_interval_days: number | null = 7;
 
   isSubmitting = false;
+  errorMessage = '';
   showValidationErrors = false;
 
-  private toastr = inject(ToastrService);
+  /** Minimum selectable date — today, no past dates allowed */
+  readonly minDate: Date = (() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d;
+  })();
 
   ngOnInit() {
     this.due_date = new Date();
+    if (this.template) {
+      if (this.template.title) this.title = this.template.title;
+      if (this.template.description) this.description = this.template.description;
+      if (this.template.difficulty) this.difficulty = this.template.difficulty as any;
+      if (this.template.points) this.points = this.template.points;
+      if (this.template.assigned_to) {
+        const memberExists = this.members.some((m) => m.id === this.template!.assigned_to);
+        if (memberExists) {
+          this.assigned_to = this.template.assigned_to;
+        }
+      }
+    }
   }
 
   getLocalDateString(date: Date): string {
@@ -90,6 +108,12 @@ export class CreateTaskComponent implements OnInit {
 
   getNormalizedDueDate(): string | null {
     if (this.due_date instanceof Date) {
+      // Reject past dates
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const selected = new Date(this.due_date);
+      selected.setHours(0, 0, 0, 0);
+      if (selected < today) return null;
       return this.getLocalDateString(this.due_date);
     }
     if (typeof this.due_date === 'string' && this.due_date.trim().length > 0) {
@@ -142,20 +166,15 @@ export class CreateTaskComponent implements OnInit {
     if (this.isSubmitting) return;
 
     this.isSubmitting = true;
-
-    const title = this.getNormalizedTitle()!;
-    const assignedTo = this.getNormalizedAssignedTo()!;
-    const dueDate = this.getNormalizedDueDate()!;
-    const difficulty = this.getNormalizedDifficulty()!;
-    const points = this.getNormalizedPoints()!;
+    this.errorMessage = '';
 
     const payload: CreateTaskPayload = {
-      title,
+      title: this.getNormalizedTitle()!,
       description: this.description.trim() || undefined,
-      assigned_to: assignedTo,
-      due_date: dueDate,
-      difficulty,
-      points,
+      assigned_to: this.getNormalizedAssignedTo()!,
+      due_date: this.getNormalizedDueDate()!,
+      difficulty: this.getNormalizedDifficulty()!,
+      points: this.getNormalizedPoints()!,
       is_recurring: this.is_recurring,
       recurrence_interval_days: this.is_recurring ? this.getNormalizedRecurrenceInterval() : null,
     };
@@ -163,13 +182,12 @@ export class CreateTaskComponent implements OnInit {
     this.taskService.createTask(payload).subscribe({
       next: () => {
         this.isSubmitting = false;
-        this.toastr.success(`"${title}" has been added to the board.`, 'Task Created');
         this.taskCreated.emit();
         this.close();
       },
       error: (err: Error) => {
         this.isSubmitting = false;
-        this.toastr.error(err.message, 'Create Failed');
+        this.errorMessage = err.message;
       },
     });
   }

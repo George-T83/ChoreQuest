@@ -48,6 +48,19 @@ export class HouseholdService {
     );
   }
 
+  deleteHousehold(): Observable<{ detail: string }> {
+    return this.http.delete<{ detail: string }>(`${API_BASE}/delete/`).pipe(
+      tap(() => this._household$.next(null)),
+      catchError(this.handleError),
+    );
+  }
+
+  removeMember(memberId: string): Observable<{ detail: string }> {
+    return this.http.post<{ detail: string }>(`${API_BASE}/remove-member/`, { member_id: memberId }).pipe(
+      catchError(this.handleError),
+    );
+  }
+
   clearHousehold(): void {
     this._household$.next(null);
   }
