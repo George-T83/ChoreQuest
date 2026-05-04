@@ -274,11 +274,9 @@
   transform: none;
 }
 
-/* Standalone complete button (non-admin) */
-.btn-complete.standalone {
-  padding: 0.4rem 0.9rem;
-  border-radius: 999px;
-  margin-left: auto;
+.btn-icon.btn-view:hover:not(:disabled) {
+  background-color: var(--teal-100, #ccfbf1);
+  color: var(--teal-600, #0d9488);
 }
 
 /* =========================================
