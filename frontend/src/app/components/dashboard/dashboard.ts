@@ -12,8 +12,8 @@ import { FormsModule } from '@angular/forms';
 import { Router, RouterLink, RouterModule } from '@angular/router';
 import { Auth } from '@angular/fire/auth';
 import { Firestore, doc, onSnapshot } from '@angular/fire/firestore';
-import { BehaviorSubject, combineLatest } from 'rxjs';
-import { finalize, map, take } from 'rxjs/operators';
+import { BehaviorSubject, combineLatest, forkJoin, of } from 'rxjs';
+import { finalize, map, take, catchError, timeout } from 'rxjs/operators';
 import { HouseholdService } from '../../services/household';
 import { TaskService } from '../../services/task';
 import { CreateTaskComponent } from '../create-task/create-task';
@@ -327,11 +327,26 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
       this.subscribeToUserPoints(user.uid);
 
-      this.householdService.loadMyHousehold().subscribe({
-        next: (household) => {
+      // Parallelize household and tasks loading
+      forkJoin({
+        household: this.householdService.loadMyHousehold().pipe(
+          timeout(15000),
+          catchError((err) => {
+            console.error('Household load timeout or error:', err);
+            return of(null);
+          }),
+        ),
+        tasks: this.taskService.loadHouseholdTasks().pipe(
+          timeout(15000),
+          catchError((err) => {
+            console.error('Tasks load timeout or error:', err);
+            return of([]);
+          }),
+        ),
+      }).subscribe({
+        next: ({ household }) => {
           this.isInitialLoading = false;
           if (household) {
-            this.reloadHouseholdTasks();
             const memberUids = (household.members as any[]).map((m) => m.id ?? m);
             this.subscribeMemberStats(memberUids);
           }

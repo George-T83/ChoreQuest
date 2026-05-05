@@ -2,6 +2,7 @@ import { Component, inject, OnInit, ChangeDetectorRef } from '@angular/core';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../services/auth';
+import { BackendWarmupService } from '../../services/backend-warmup';
 
 @Component({
   selector: 'app-login',
@@ -15,6 +16,7 @@ export class LoginComponent implements OnInit {
   private readonly authService = inject(AuthService);
   private readonly router = inject(Router);
   private readonly cdr = inject(ChangeDetectorRef);
+  private readonly warmup = inject(BackendWarmupService);
 
   form!: FormGroup;
   loading = false;
@@ -52,6 +54,7 @@ export class LoginComponent implements OnInit {
 
     this.authService.login(this.emailCtrl.value, this.passCtrl.value).subscribe({
       next: () => {
+        this.warmup.warmupBackend();
         this.loading = false;
         this.cdr.detectChanges();
         this.router.navigate(['/dashboard']);
