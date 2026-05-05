@@ -84,10 +84,10 @@ def create_task(request):
             due_date = datetime.strptime(clean_date, "%Y-%m-%d").replace(hour=12)
             due_date = due_date.replace(tzinfo=timezone.utc)
 
-            # Reject past dates
+            # Reject past dates (subtract 1 day to account for user timezones behind UTC)
             today_start = datetime.now(timezone.utc).replace(
                 hour=0, minute=0, second=0, microsecond=0
-            )
+            ) - timedelta(days=1)
             if due_date < today_start:
                 return Response(
                     {'detail': 'Due date cannot be in the past. Please choose today or a future date.'},
@@ -161,8 +161,8 @@ def get_household_tasks(request):
 @permission_classes([IsAuthenticated])
 def check_overdue_streaks(request):
     """
-    Checks all pending overdue tasks in the household.
-    Resets streak to 0 for any member with overdue tasks and streak > 0.
+    Checks if a user missed a day.
+    Resets streak to 0 for any member whose last completed task was before yesterday.
     Runs for ALL household members. Safe to call on every page load.
     """
     uid = request.user.username
@@ -173,41 +173,11 @@ def check_overdue_streaks(request):
         return Response({'detail': 'You are not in a household.'}, status=400)
 
     today = datetime.now(timezone.utc)
-
-    task_docs = household_ref.collection('tasks').where(
-        filter=firestore.FieldFilter('status', '==', 'pending')
-    ).stream()
-
-    overdue_uids = set()
-    for task_doc in task_docs:
-        task = task_doc.to_dict()
-        due_date = task.get('due_date')
-        assigned_to = task.get('assigned_to')
-
-        if not due_date or not assigned_to:
-            continue
-
-        try:
-            if hasattr(due_date, 'isoformat'):
-                due_dt = due_date
-            else:
-                due_dt = datetime.fromisoformat(str(due_date).replace('Z', '+00:00'))
-
-            if due_dt.tzinfo is None:
-                due_dt = due_dt.replace(tzinfo=timezone.utc)
-
-            grace_end = due_dt + timedelta(hours=12)
-            if today > grace_end:
-                overdue_uids.add(assigned_to)
-
-        except (ValueError, TypeError, AttributeError):
-            continue
-
-    if not overdue_uids:
-        return Response({'detail': 'No streaks to reset.', 'reset_count': 0}, status=200)
+    today_date = today.strftime('%Y-%m-%d')
+    yesterday_date = (today - timedelta(days=1)).strftime('%Y-%m-%d')
 
     reset_count = 0
-    for member_uid in overdue_uids:
+    for member_uid in household_data.get('members', []):
         user_ref = db.collection('users').document(member_uid)
         user_doc = user_ref.get()
         if not user_doc.exists:
@@ -220,8 +190,11 @@ def check_overdue_streaks(request):
             current_streak = 0
 
         if current_streak > 0:
-            user_ref.update({'streak': 0})
-            reset_count += 1
+            last_streak_date = user_data.get('last_streak_date')
+            # If they haven't completed a task today or yesterday, the streak is broken.
+            if last_streak_date not in [today_date, yesterday_date]:
+                user_ref.update({'streak': 0})
+                reset_count += 1
 
     return Response({
         'detail': f'Streak check complete. {reset_count} streak(s) reset.',
@@ -234,8 +207,8 @@ def check_overdue_streaks(request):
 def complete_task(request, task_id):
     """
     Marks a task as completed. Assigned users (or the Household Admin) can complete it.
-    Awards points and increments streak for the ASSIGNED user.
-    Streak counts consecutive task completions — reset to 0 when any task goes overdue.
+    Awards points and updates streak for the ASSIGNED user.
+    Streak counts consecutive days where at least one task was completed.
     """
     uid = request.user.username
     db = settings.FIREBASE_DB
@@ -311,13 +284,23 @@ def complete_task(request, task_id):
         except (ValueError, TypeError):
             points_to_award = 0
 
-        # Streak: increment on every completion, reset by check_overdue_streaks when overdue
+        # Streak: increment on consecutive days where at least one task was completed
         try:
             current_streak = int(user_data.get('streak', 0))
         except (ValueError, TypeError):
             current_streak = 0
 
-        new_streak = current_streak + 1
+        last_streak_date = user_data.get('last_streak_date')
+        now_utc = datetime.now(timezone.utc)
+        today_date = now_utc.strftime('%Y-%m-%d')
+        yesterday_date = (now_utc - timedelta(days=1)).strftime('%Y-%m-%d')
+
+        if last_streak_date == today_date:
+            new_streak = current_streak
+        elif last_streak_date == yesterday_date:
+            new_streak = current_streak + 1
+        else:
+            new_streak = 1
 
         interval = task_tx.get('recurrence_interval_days', None)
         updated_task_data = task_tx.copy()
@@ -337,7 +320,9 @@ def complete_task(request, task_id):
                     due_dt = due_dt.replace(tzinfo=timezone.utc)
 
                 now_check = datetime.now(timezone.utc)
-                grace_end = due_dt + timedelta(hours=12)
+                # Increase grace period to 24 hours (covers up to noon UTC the next day)
+                # This guarantees users in timezones behind UTC (like CST/PST) aren't marked late
+                grace_end = due_dt + timedelta(hours=24)
                 if now_check > grace_end:
                     was_late = True
                     points_deducted = math.floor(points_to_award * 0.20)
@@ -390,6 +375,7 @@ def complete_task(request, task_id):
         user_updates = {
             'total_tasks_completed': firestore.Increment(1),
             'streak': new_streak,
+            'last_streak_date': today_date,
         }
         if awarded_points > 0:
             user_updates['points'] = firestore.Increment(awarded_points)
@@ -496,10 +482,10 @@ def update_task(request, task_id):
             due_date = datetime.strptime(clean_date, "%Y-%m-%d").replace(hour=12)
             due_date = due_date.replace(tzinfo=timezone.utc)
 
-            # Reject past dates
+            # Reject past dates (subtract 1 day to account for user timezones behind UTC)
             today_start = datetime.now(timezone.utc).replace(
                 hour=0, minute=0, second=0, microsecond=0
-            )
+            ) - timedelta(days=1)
             if due_date < today_start:
                 return Response(
                     {'detail': 'Due date cannot be in the past. Please choose today or a future date.'},
@@ -541,7 +527,8 @@ def update_task(request, task_id):
                     due_dt = due_dt.replace(tzinfo=timezone.utc)
 
                 now = datetime.now(timezone.utc)
-                grace_end = due_dt + timedelta(hours=12)
+                # Ensure reopen calculation uses the same 24-hour grace period
+                grace_end = due_dt + timedelta(hours=24)
                 
                 if now > grace_end:
                     # Bump due date to tomorrow at noon UTC so they have a full day to complete it
