@@ -521,6 +521,7 @@
   .invite-section {
     flex: none;
     justify-content: flex-start;
+    width: 100%;
   }
 }
 
