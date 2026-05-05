@@ -170,6 +170,13 @@
   padding-bottom: 80px;
 }
 
+@media (max-width: 640px) {
+  .main-content {
+    padding: 0.75rem;
+    padding-bottom: 80px;
+  }
+}
+
 .card {
   background: var(--surface-color);
   border-radius: 0.75rem;
@@ -189,6 +196,14 @@
   justify-content: space-between;
   align-items: center;
   margin-bottom: 1.5rem;
+}
+
+@media (max-width: 640px) {
+  .household-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
 }
 
 .hh-info {
@@ -498,6 +513,15 @@
 .invite-section {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
+  flex: 1;
+}
+
+@media (max-width: 640px) {
+  .invite-section {
+    flex: none;
+    justify-content: flex-start;
+  }
 }
 
 .invite-box {
@@ -510,6 +534,13 @@
   padding: 0.5rem 1rem;
   cursor: pointer;
   transition: all 0.2s ease;
+}
+
+@media (max-width: 640px) {
+  .invite-box {
+    padding: 0.75rem 1rem;
+    width: 100%;
+  }
 }
 
 .invite-box:hover,
@@ -685,6 +716,24 @@
 
   .divider {
     display: none; /* Hides vertical divider on small screens where they wrap */
+  }
+}
+
+@media (max-width: 640px) {
+  .filter-toolbar {
+    flex-direction: column;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    margin-bottom: 1rem;
+  }
+
+  .filter-group {
+    min-width: 100%;
+    flex: 1 1 100%;
+  }
+
+  .points-range-group {
+    min-width: 100%;
   }
 }
 

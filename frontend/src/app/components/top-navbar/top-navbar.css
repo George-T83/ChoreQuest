@@ -13,24 +13,31 @@
   background-color: var(--header-bg);
   color: white;
   display: flex;
-  justify-content: space-between;
   align-items: center;
   padding: 1rem;
   position: sticky;
   top: 0;
   z-index: 10;
+  gap: 1rem;
 }
 
 .logo-text {
   margin: 0;
   font-size: 1.25rem;
   font-weight: bold;
+  flex-shrink: 0;
 }
 
 .page-title {
   margin: 0;
   font-size: 1.1rem;
   font-weight: 600;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
 }
 
 .header-center {
@@ -43,6 +50,7 @@
   display: flex;
   align-items: center;
   gap: 0.75rem;
+  flex-shrink: 0;
 }
 
 .reset-btn {
@@ -203,26 +211,29 @@
 @media (max-width: 480px) {
   .app-header {
     padding: 0.6rem 0.5rem;
-    flex-wrap: wrap;
-    gap: 0.5rem;
+    flex-direction: column;
+    gap: 0.75rem;
+    align-items: center;
   }
   .header-left {
-    flex: 1;
-    min-width: 0;
+    width: 100%;
+    justify-content: center;
+    order: 1;
   }
   .logo-text {
-    font-size: 1.1rem;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  .header-center {
-    order: 3;
-    width: 100%;
+    font-size: 1.75rem;
   }
   .header-right {
+    width: fit-content;
+    justify-content: center;
     gap: 0.4rem;
-    flex-shrink: 0;
+    order: 2;
+  }
+  .header-center {
+    width: fit-content;
+    justify-content: center;
+    order: 3;
+    margin-left: 0;
   }
   .points-counter {
     padding: 0.2rem 0.4rem;
@@ -235,10 +246,32 @@
     font-size: 0.75rem;
     min-width: auto;
   }
+  .rank-badge {
+    padding: 0.2rem 0.4rem;
+  }
+  .rank-icon {
+    font-size: 0.75rem;
+  }
+  .rank-value {
+    font-size: 0.75rem;
+    min-width: auto;
+  }
+  .streak-counter {
+    padding: 0.2rem 0.4rem;
+  }
+  .streak-display {
+    font-size: 0.7rem;
+  }
   .avatar {
     width: 28px;
     height: 28px;
     font-size: 0.75rem;
+  }
+  .header-badge-icons {
+    gap: 0.15rem;
+  }
+  .header-badge-icon {
+    font-size: 1rem;
   }
 }
 
