@@ -3,8 +3,9 @@ import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Observable, BehaviorSubject, throwError } from 'rxjs';
 import { tap, catchError } from 'rxjs/operators';
 import { Task, CreateTaskPayload, CompleteTaskResponse } from '../models/task';
+import { environment } from '../../environments/environment';
 
-const API_BASE = '/api/tasks';
+const API_BASE = `${environment.apiUrl}/api/tasks`;
 
 @Injectable({ providedIn: 'root' })
 export class TaskService {

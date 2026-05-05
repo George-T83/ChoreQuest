@@ -1,5 +1,6 @@
 export const environment = {
-  production: false,
+  production: true,
+  apiUrl: 'https://chorequest-0g82.onrender.com',
   firebase: {
     apiKey: 'AIzaSyBGgvO9h2S-OXEaU-WkEfpmZsLvflhxhZ4',
     authDomain: 'chorequest-f39a1.firebaseapp.com',
