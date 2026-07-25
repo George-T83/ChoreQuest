@@ -10,4 +10,5 @@ urlpatterns = [
     path('delete/',            views.delete_household),
     path('remove-member/',     views.remove_member),
     path('reset-leaderboard/', views.reset_leaderboard),
+    path('update/',            views.update_household),
 ]

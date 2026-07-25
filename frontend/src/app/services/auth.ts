@@ -1,4 +1,6 @@
 import { Injectable, inject } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { environment } from '../../environments/environment';
 import {
   Auth,
   createUserWithEmailAndPassword,
@@ -29,24 +31,10 @@ import { switchMap } from 'rxjs/operators';
 export class AuthService {
   private readonly auth = inject(Auth);
   private readonly firestore = inject(Firestore);
+  private readonly http = inject(HttpClient);
 
   getUserProfile(): Observable<any> {
-    return new Observable((observer) => {
-      const currentUser = this.auth.currentUser;
-      if (currentUser) {
-        const userDocRef = doc(this.firestore, `users/${currentUser.uid}`);
-
-        const unsubscribe = onSnapshot(
-          userDocRef,
-          (snap) => observer.next(snap.data()),
-          (err) => observer.error(err),
-        );
-        return () => unsubscribe();
-      } else {
-        observer.next(null);
-        return observer.complete();
-      }
-    });
+    return this.http.get<any>(`${environment.apiUrl}/api/household/profile/`);
   }
 
   login(email: string, password: string): Observable<any> {
@@ -87,25 +75,8 @@ export class AuthService {
     return user(this.auth).pipe(
       switchMap((currentUser) => {
         if (!currentUser) return of(null);
-
-        const userDocRef = doc(this.firestore, `users/${currentUser.uid}`);
-
-        return new Observable((observer) => {
-          const unsubscribe = onSnapshot(
-            userDocRef,
-            (docSnap) => {
-              if (docSnap.exists()) {
-                observer.next(docSnap.data());
-              } else {
-                observer.next(null);
-              }
-            },
-            (error) => observer.error(error),
-          );
-
-          return () => unsubscribe();
-        });
-      }),
+        return this.http.get<any>(`${environment.apiUrl}/api/household/profile/`);
+      })
     );
   }
 

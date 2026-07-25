@@ -46,7 +46,10 @@ def _hydrate_household(data, household_ref):
                 "display_name": user_info.get('display_name', 'Unknown User'),
                 "email": user_info.get('email', ''),
                 "is_admin": uid == admin_id,
-                "joined_at": joined_at_str
+                "joined_at": joined_at_str,
+                "points": user_info.get('points', 0),
+                "streak": user_info.get('streak', 0),
+                "total_tasks_completed": user_info.get('total_tasks_completed', 0)
             })
 
     # Self-heal stale household docs when deleted accounts leave orphaned member IDs.
@@ -447,3 +450,46 @@ def reset_leaderboard(request):
         'winner_points': winner_points,
         'cycle_saved':   cycle_saved,
     }, status=200)
+
+@api_view(['PATCH'])
+@permission_classes([IsAuthenticated])
+def update_household(request):
+    """
+    Admin-only. Updates household details (name or admin_id/ownership transfer).
+    """
+    uid = request.user.username
+    data, doc_ref = _get_user_household_doc(uid)
+    
+    if not data or not doc_ref:
+        return Response({'detail': 'Not in any household.'}, status=400)
+        
+    if data.get('admin_id') != uid:
+        return Response({'detail': 'Only the admin can update the household.'}, status=403)
+        
+    name = request.data.get('name', '').strip()
+    admin_id = request.data.get('admin_id', '').strip()
+    
+    updates = {}
+    if name:
+        if len(name) < 3:
+            return Response({'detail': 'Household name must be at least 3 characters.'}, status=400)
+        updates['name'] = name
+        
+    if admin_id:
+        members = data.get('members', [])
+        if admin_id not in members:
+            return Response({'detail': 'New admin must be a member of the household.'}, status=400)
+        updates['admin_id'] = admin_id
+        
+        # If admin is being transferred, also update memberships subcollection
+        # The previous admin becomes 'member', the new admin becomes 'admin'
+        doc_ref.collection('memberships').document(uid).update({'role': 'member'})
+        doc_ref.collection('memberships').document(admin_id).update({'role': 'admin'})
+        
+    if not updates:
+        return Response({'detail': 'No updates provided.'}, status=400)
+        
+    doc_ref.update(updates)
+    data.update(updates)
+    
+    return Response(_hydrate_household(data, doc_ref), status=200)
