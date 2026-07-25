@@ -1,22 +1,31 @@
 import { TestBed } from '@angular/core/testing';
 import { AuthService } from './auth';
 import { Auth } from '@angular/fire/auth';
+import { Firestore } from '@angular/fire/firestore';
+import { HttpClient } from '@angular/common/http';
+import { of } from 'rxjs';
 
 describe('AuthService', () => {
   let service: AuthService;
 
   beforeEach(() => {
-    // 1. Create a dummy Auth object with the methods you plan to use/test
     const mockAuth = {
       currentUser: null,
       updateCurrentUser: () => Promise.resolve(),
     };
 
+    const mockFirestore = {};
+    const mockHttpClient = {
+      get: () => of({}),
+      post: () => of({}),
+    };
+
     TestBed.configureTestingModule({
       providers: [
         AuthService,
-        // 2. Tell Angular to provide our fake mockAuth whenever `Auth` is injected
         { provide: Auth, useValue: mockAuth },
+        { provide: Firestore, useValue: mockFirestore },
+        { provide: HttpClient, useValue: mockHttpClient },
       ],
     });
 

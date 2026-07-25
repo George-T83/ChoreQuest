@@ -222,88 +222,59 @@ export class HouseholdSettingsComponent implements OnInit, OnDestroy {
     this.isTransferring = true;
     this.cdr.detectChanges();
 
-    if (this.isTransferAndLeaveFlow && this.currentUserUid) {
-      const runTransferAndLeave = async () => {
-        try {
-          const batch = writeBatch(this.firestore);
-          const hhRef = doc(this.firestore, `households/${this.household!.id}`);
-          const userRef = doc(this.firestore, `users/${this.currentUserUid}`);
-          const membershipRef = doc(
-            this.firestore,
-            `households/${this.household!.id}/memberships/${this.currentUserUid}`,
-          );
-
-          const updatedMemberIds = this.household!.members.map((m) => m.id).filter(
-            (id) => id !== this.currentUserUid,
-          );
-
-          batch.update(hhRef, {
-            admin_id: this.selectedTransferMemberId,
-            members: updatedMemberIds,
-            member_count: updatedMemberIds.length,
-            is_full: false,
-          });
-          batch.update(userRef, { household_id: null, household_name: null, householdName: null });
-          batch.delete(membershipRef);
-
-          const tasksQuery = query(
-            collection(this.firestore, `households/${this.household!.id}/tasks`),
-            where('assigned_to', '==', this.currentUserUid),
-          );
-          const taskSnaps = await getDocs(tasksQuery);
-          taskSnaps.forEach((docSnap) => {
-            if (docSnap.data()['status'] !== 'completed') {
-              batch.update(docSnap.ref, {
-                assigned_to: this.selectedTransferMemberId,
-              });
+    if (this.isTransferAndLeaveFlow) {
+      this.householdService.updateHousehold({ admin_id: this.selectedTransferMemberId }).subscribe({
+        next: () => {
+          this.householdService.leaveHousehold().subscribe({
+            next: () => {
+              this.closeTransferModal();
+              this.householdService.clearHousehold();
+              this.taskService.clearTasks();
+              this.toastr.success('Ownership transferred and you have left the household.', 'Success');
+              this.router.navigate(['/dashboard']);
+            },
+            error: (err: any) => {
+              this.isTransferring = false;
+              this.cdr.detectChanges();
+              this.toastr.error('Error leaving after transfer: ' + err.message, 'Error');
             }
           });
-
-          await batch.commit();
-
-          this.closeTransferModal();
-          this.householdService.clearHousehold();
-          this.taskService.clearTasks();
-          this.toastr.success('Ownership transferred and you have left the household.', 'Success');
-          this.router.navigate(['/dashboard']);
-        } catch (error: any) {
+        },
+        error: (err: any) => {
           this.isTransferring = false;
           this.cdr.detectChanges();
-          this.toastr.error('Error transferring ownership and leaving: ' + error.message, 'Error');
+          this.toastr.error('Error transferring ownership: ' + err.message, 'Error');
         }
-      };
-
-      runTransferAndLeave();
+      });
       return;
     }
 
-    const hhRef = doc(this.firestore, `households/${this.household.id}`);
-
-    updateDoc(hhRef, { admin_id: this.selectedTransferMemberId }).catch((err: any) => {
-      if (err.code === 'permission-denied') {
-        console.warn('Post-transfer rule evaluation expected behavior:', err.message);
-      } else {
-        console.error('Unexpected error while transferring household admin:', err);
+    this.householdService.updateHousehold({ admin_id: this.selectedTransferMemberId }).subscribe({
+      next: (updatedHousehold) => {
+        if (this.household) {
+          this.household.admin_id = this.selectedTransferMemberId;
+        }
+        this.closeTransferModal();
+        this.toastr.success('Ownership transferred successfully.', 'Success');
+      },
+      error: (err: any) => {
+        this.isTransferring = false;
+        this.cdr.detectChanges();
+        this.toastr.error('Error transferring ownership: ' + err.message, 'Error');
       }
     });
-
-    setTimeout(() => {
-      if (this.household) {
-        this.household.admin_id = this.selectedTransferMemberId;
-      }
-      this.closeTransferModal();
-    }, 500);
   }
 
-  async saveName() {
+  saveName() {
     if (!this.household || !this.editName.trim()) return;
-    try {
-      const hhRef = doc(this.firestore, `households/${this.household.id}`);
-      await updateDoc(hhRef, { name: this.editName.trim() });
-      this.toastr.success('Household name updated successfully!', 'Success');
-    } catch (error: any) {
-      this.toastr.error('Error updating name: ' + error.message, 'Error');
-    }
+    this.householdService.updateHousehold({ name: this.editName.trim() }).subscribe({
+      next: () => {
+        this.toastr.success('Household name updated successfully!', 'Success');
+      },
+      error: (err: any) => {
+        this.toastr.error('Error updating name: ' + err.message, 'Error');
+      }
+    });
   }
 
   copyCode() {

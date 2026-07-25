@@ -6,6 +6,8 @@ import { Auth } from '@angular/fire/auth';
 import { ToastrService } from 'ngx-toastr';
 import { LeaderboardHistoryComponent } from '../leaderboard-history/leaderboard-history';
 import { LeaderboardService } from '../../services/leaderboard';
+import { HouseholdService } from '../../services/household';
+import { Subscription } from 'rxjs';
 import { Badge, computeBadges, formatStreak } from '../../utils/badge';
 
 export interface HouseholdMember {
@@ -35,6 +37,7 @@ export class LeaderboardComponent implements OnInit, OnDestroy {
   private auth = inject(Auth);
   private toastr = inject(ToastrService);
   private leaderboardService = inject(LeaderboardService);
+  private householdService = inject(HouseholdService);
 
   isAdmin = false;
   isResetting = false;
@@ -51,8 +54,7 @@ export class LeaderboardComponent implements OnInit, OnDestroy {
 
   householdAdminId = '';
 
-  private unsubscribeHousehold: (() => void) | null = null;
-  private unsubscribeMembers: (() => void) | null = null;
+  private householdSub: Subscription | null = null;
   private authUnsubscribe: (() => void) | null = null;
 
   onViewHistory() {
@@ -81,6 +83,7 @@ export class LeaderboardComponent implements OnInit, OnDestroy {
           this.toastr.success('Points and tasks have been reset to zero.', 'Reset Complete');
         }
 
+        this.householdService.loadMyHousehold().subscribe();
         this.cdr.detectChanges();
       },
       error: (err: any) => {
@@ -105,101 +108,66 @@ export class LeaderboardComponent implements OnInit, OnDestroy {
   }
 
   fetchLeaderboardData(uid: string): void {
-    if (this.unsubscribeHousehold) {
-      this.unsubscribeHousehold();
+    if (this.householdSub) {
+      this.householdSub.unsubscribe();
     }
 
-    const householdsRef = collection(this.firestore, 'households');
-    const householdQuery = query(householdsRef, where('members', 'array-contains', uid));
+    this.householdService.loadMyHousehold().subscribe();
 
-    this.unsubscribeHousehold = onSnapshot(
-      householdQuery,
-      (hSnap) => {
-        if (!hSnap.empty) {
-          const householdData = hSnap.docs[0].data();
-          this.currentHouseholdId = hSnap.docs[0].id;
-          const memberUids = householdData['members'] || [];
-          this.householdAdminId = householdData['admin_id'] || '';
-          this.isAdmin = this.currentUid === this.householdAdminId;
+    this.householdSub = this.householdService.household$.subscribe((household) => {
+      if (household) {
+        this.currentHouseholdId = household.id;
+        this.householdAdminId = household.admin_id;
+        this.isAdmin = this.currentUid === this.householdAdminId;
 
-          if (memberUids.length > 0) {
-            const usersRef = collection(this.firestore, 'users');
-            const usersInHouseholdQuery = query(usersRef, where('uid', 'in', memberUids));
+        const members = (household.members || []).map(m => this.mapToHouseholdMember(m));
 
-            if (this.unsubscribeMembers) {
-              this.unsubscribeMembers();
-            }
+        members.sort((a, b) => {
+          if (b.points !== a.points) return b.points - a.points;
+          if (b.streak !== a.streak) return b.streak - a.streak;
+          if (a.id === this.householdAdminId) return -1;
+          if (b.id === this.householdAdminId) return 1;
+          return 0;
+        });
 
-            this.unsubscribeMembers = onSnapshot(
-              usersInHouseholdQuery,
-              (uSnap) => {
-                const members: HouseholdMember[] = [];
-
-                uSnap.forEach((docSnap) => {
-                  const data = docSnap.data();
-                  data['id'] = docSnap.id;
-                  members.push(this.mapToHouseholdMember(data));
-                });
-
-                members.sort((a, b) => {
-                  if (b.points !== a.points) return b.points - a.points;
-                  if (b.streak !== a.streak) return b.streak - a.streak;
-                  if (a.id === this.householdAdminId) return -1;
-                  if (b.id === this.householdAdminId) return 1;
-                  return 0;
-                });
-
-                members.forEach((member, index) => {
-                  if (member.streak === 0) {
-                    member.statusBadge = 'No activity';
-                  } else if (index === 0) {
-                    member.statusBadge = 'MVP';
-                  } else if (member.streak >= 3) {
-                    member.statusBadge = 'On fire';
-                  } else if (member.id === this.currentUid) {
-                    member.statusBadge = 'You';
-                  } else {
-                    member.statusBadge = null;
-                  }
-                });
-
-                this.totalChoresCompleted = members.reduce(
-                  (sum, member) => sum + member.totalTasksCompleted,
-                  0,
-                );
-
-                this.allMembers = members;
-                this.topThree = this.allMembers.slice(0, 3);
-
-                const highestStreakMember = [...members].sort((a, b) => b.streak - a.streak)[0];
-                if (highestStreakMember) {
-                  this.topStreakHolder = highestStreakMember.firstName;
-                  this.topStreakDays = highestStreakMember.streak;
-                }
-
-                this.cdr.detectChanges();
-              },
-              (error) => {
-                console.error('Firestore Error fetching members:', error);
-              },
-            );
+        members.forEach((member, index) => {
+          if (member.streak === 0) {
+            member.statusBadge = 'No activity';
+          } else if (index === 0) {
+            member.statusBadge = 'MVP';
+          } else if (member.streak >= 3) {
+            member.statusBadge = 'On fire';
+          } else if (member.id === this.currentUid) {
+            member.statusBadge = 'You';
+          } else {
+            member.statusBadge = null;
           }
-        } else {
-          this.allMembers = [];
-          this.topThree = [];
-          this.totalChoresCompleted = 0;
-          this.cdr.detectChanges();
+        });
+
+        this.totalChoresCompleted = members.reduce(
+          (sum, member) => sum + member.totalTasksCompleted,
+          0,
+        );
+
+        this.allMembers = members;
+        this.topThree = this.allMembers.slice(0, 3);
+
+        const highestStreakMember = [...members].sort((a, b) => b.streak - a.streak)[0];
+        if (highestStreakMember) {
+          this.topStreakHolder = highestStreakMember.firstName;
+          this.topStreakDays = highestStreakMember.streak;
         }
-      },
-      (error) => {
-        console.error('Firestore Error fetching household:', error);
-      },
-    );
+      } else {
+        this.allMembers = [];
+        this.topThree = [];
+        this.totalChoresCompleted = 0;
+      }
+      this.cdr.detectChanges();
+    });
   }
 
   ngOnDestroy(): void {
-    if (this.unsubscribeMembers) this.unsubscribeMembers();
-    if (this.unsubscribeHousehold) this.unsubscribeHousehold();
+    if (this.householdSub) this.householdSub.unsubscribe();
     if (this.authUnsubscribe) this.authUnsubscribe();
   }
 

@@ -83,6 +83,9 @@ export class ProfileComponent implements OnInit, OnDestroy {
         this.initials = nameFromDb.charAt(0).toUpperCase();
         this.email = data.email;
         this.totalPoints = data.points || 0;
+        this.currentStreak = data.streak || 0;
+        this.totalTasksCompleted = data.total_tasks_completed || 0;
+        this.currentBadges = computeBadges(this.totalTasksCompleted, this.totalPoints);
 
         if (!this.profileForm.dirty) {
           this.profileForm.patchValue({ displayName: nameFromDb });
@@ -90,7 +93,6 @@ export class ProfileComponent implements OnInit, OnDestroy {
 
         this.isLoading = false;
         this.checkAdminStatus();
-        this.subscribeToStreak(data.uid);
         this.refreshRank();
         this.cdr.detectChanges();
       } else {
@@ -114,67 +116,18 @@ export class ProfileComponent implements OnInit, OnDestroy {
     });
   }
 
-  private subscribeToStreak(uid: string): void {
-    if (this.streakUnsub) this.streakUnsub();
-    const userRef = doc(this.firestore, `users/${uid}`);
-    this.streakUnsub = onSnapshot(userRef, (snap) => {
-      if (snap.exists()) {
-        const data = snap.data();
-        this.currentStreak = data['streak'] ?? 0;
-        this.totalTasksCompleted = data['total_tasks_completed'] ?? 0;
-        this.totalPoints = data['points'] ?? this.totalPoints;
-        this.currentBadges = computeBadges(this.totalTasksCompleted, this.totalPoints);
-      }
-      this.cdr.detectChanges();
-    });
-  }
-
   private refreshRank(): void {
     const uid = this.currentUserUid;
     const hh = this.currentHousehold;
-    if (!uid) {
-      this.leaderboardRank = '—';
-      return;
-    }
-    if (!hh || !Array.isArray(hh.members)) {
+    if (!uid || !hh || !Array.isArray(hh.members)) {
       this.leaderboardRank = '—';
       return;
     }
 
-    const memberIds = hh.members
-      .map((m: any) => m?.id)
-      .filter((id: unknown): id is string => typeof id === 'string' && id.length > 0);
-
-    if (memberIds.length === 0) {
-      this.leaderboardRank = '—';
-      return;
-    }
-    void this.computeRank(memberIds);
-  }
-
-  private async computeRank(memberIds: string[]): Promise<void> {
-    const seq = ++this.rankComputeSeq;
-    if (!this.currentUserUid || memberIds.length === 0) {
-      if (seq === this.rankComputeSeq) this.leaderboardRank = '—';
-      return;
-    }
-    try {
-      const usersRef = collection(this.firestore, 'users');
-      const q = query(usersRef, where('uid', 'in', memberIds));
-      const snap = await getDocs(q);
-      if (seq !== this.rankComputeSeq) return;
-      if (!this.currentHousehold) return;
-      const members = snap.docs.map((d) => ({
-        uid: d.data()['uid'] as string,
-        points: (d.data()['points'] as number) || 0,
-      }));
-      members.sort((a, b) => b.points - a.points);
-      const rank = members.findIndex((m) => m.uid === this.currentUserUid) + 1;
-      this.leaderboardRank = rank > 0 ? `#${rank}` : '—';
-    } catch {
-      if (seq === this.rankComputeSeq) this.leaderboardRank = '—';
-    }
-    if (seq === this.rankComputeSeq) this.cdr.detectChanges();
+    const members = [...hh.members];
+    members.sort((a, b) => (b.points ?? 0) - (a.points ?? 0));
+    const rank = members.findIndex((m) => m.id === uid) + 1;
+    this.leaderboardRank = rank > 0 ? `#${rank}` : '—';
   }
 
   private checkAdminStatus() {
@@ -273,6 +226,5 @@ export class ProfileComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.profileSub?.unsubscribe();
     this.hhSub?.unsubscribe();
-    if (this.streakUnsub) this.streakUnsub();
   }
 }
