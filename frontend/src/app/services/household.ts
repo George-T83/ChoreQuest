@@ -31,6 +31,13 @@ export class HouseholdService {
     );
   }
 
+  updateHousehold(payload: { name?: string; admin_id?: string }): Observable<Household> {
+    return this.http.patch<Household>(`${API_BASE}/update/`, payload).pipe(
+      tap((h) => this._household$.next(h)),
+      catchError(this.handleError),
+    );
+  }
+
   joinHousehold(payload: JoinHouseholdPayload): Observable<Household> {
     return this.http
       .post<Household>(`${API_BASE}/join/`, {

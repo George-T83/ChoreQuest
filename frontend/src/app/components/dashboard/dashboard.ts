@@ -12,7 +12,8 @@ import { FormsModule } from '@angular/forms';
 import { Router, RouterLink, RouterModule } from '@angular/router';
 import { Auth } from '@angular/fire/auth';
 import { Firestore, doc, onSnapshot } from '@angular/fire/firestore';
-import { BehaviorSubject, combineLatest, forkJoin, of } from 'rxjs';
+import { BehaviorSubject, combineLatest, forkJoin, of, Subscription } from 'rxjs';
+import { Badge, computeBadges, formatStreak } from '../../utils/badge';
 import { finalize, map, take, catchError, timeout } from 'rxjs/operators';
 import { HouseholdService } from '../../services/household';
 import { TaskService } from '../../services/task';
@@ -127,6 +128,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
   );
 
   isInitialLoading = true;
+  hasInitialLoadError = false;
+  initialLoadErrorMsg = '';
   isCreateTaskOpen = false;
   isEditTaskOpen = false;
   isProfileMenuOpen = false;
@@ -146,8 +149,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   memberStatsMap: Map<string, MemberStats> = new Map();
 
   private authUnsubscribe: (() => void) | null = null;
-  private pointsUnsubscribe: (() => void) | null = null;
-  private memberStatsUnsubscribes: (() => void)[] = [];
+  private householdSub: Subscription | null = null;
 
   onFilterChange() {
     this.filters$.next(this.filterState);
@@ -261,10 +263,56 @@ export class DashboardComponent implements OnInit, OnDestroy {
           }),
         )
         .subscribe({
-          next: () => {},
+          next: () => {
+            this.householdService.loadMyHousehold().subscribe();
+          },
           error: (err: Error) => this.toastr.error(err.message, 'Error'),
         });
     });
+  }
+
+  initData(user: any) {
+    this.hasInitialLoadError = false;
+    this.initialLoadErrorMsg = '';
+
+    forkJoin({
+      household: this.householdService.loadMyHousehold().pipe(
+        timeout(45000),
+        catchError((err) => {
+          console.error('Household load error:', err);
+          throw err;
+        })
+      ),
+      tasks: this.taskService.loadHouseholdTasks().pipe(
+        timeout(45000),
+        catchError((err) => {
+          console.error('Tasks load error:', err);
+          throw err;
+        })
+      ),
+    }).subscribe({
+      next: () => {
+        this.isInitialLoading = false;
+        this.cdr.detectChanges();
+      },
+      error: (err: any) => {
+        console.error('Initial load failed:', err);
+        this.isInitialLoading = false;
+        this.hasInitialLoadError = true;
+        this.initialLoadErrorMsg = 'Failed to retrieve household data or tasks from server. The connection timed out.';
+        this.cdr.detectChanges();
+      },
+    });
+  }
+
+  retryLoading() {
+    if (this.currentUser) {
+      this.isInitialLoading = true;
+      this.hasInitialLoadError = false;
+      this.initialLoadErrorMsg = '';
+      this.cdr.detectChanges();
+      this.initData(this.currentUser);
+    }
   }
 
   private reloadHouseholdTasks() {
@@ -279,44 +327,39 @@ export class DashboardComponent implements OnInit, OnDestroy {
     });
   }
 
-  private subscribeToUserPoints(uid: string) {
-    if (this.pointsUnsubscribe) this.pointsUnsubscribe();
-    const userDocRef = doc(this.firestore, `users/${uid}`);
-    this.pointsUnsubscribe = onSnapshot(userDocRef, (snapshot) => {
-      if (snapshot.exists()) {
-        const data = snapshot.data();
-        this.currentUserPoints = data['points'] ?? 0;
-        this.currentUserName = data['display_name'] || null;
-        this.cdr.detectChanges();
-      }
-    });
-  }
 
-  /**
-   * Subscribes to live Firestore updates for every household member.
-   * Builds and maintains memberStatsMap (streak + badges) for the task-list.
-   */
-  private subscribeMemberStats(memberUids: string[]): void {
-    this.memberStatsUnsubscribes.forEach((unsub) => unsub());
-    this.memberStatsUnsubscribes = [];
-    this.memberStatsMap = new Map();
-
-    for (const uid of memberUids) {
-      const userRef = doc(this.firestore, `users/${uid}`);
-      const unsub = onSnapshot(userRef, (snap) => {
-        if (snap.exists()) {
-          const stats = buildMemberStats(snap.data());
-          const updated = new Map(this.memberStatsMap);
-          updated.set(uid, stats);
-          this.memberStatsMap = updated;
-          this.cdr.detectChanges();
-        }
-      });
-      this.memberStatsUnsubscribes.push(unsub);
-    }
-  }
 
   ngOnInit() {
+    this.householdSub = this.householdService.household$.subscribe((household) => {
+      if (household) {
+        this.currentHouseholdId = household.id;
+        
+        // Build live stats (streak, badges) for every household member locally from members!
+        const map = new Map<string, MemberStats>();
+        for (const member of household.members) {
+          map.set(member.id, {
+            uid: member.id,
+            streak: member.streak ?? 0,
+            badges: computeBadges(member.total_tasks_completed ?? 0, member.points ?? 0),
+            streakDisplay: formatStreak(member.streak ?? 0),
+          });
+        }
+        this.memberStatsMap = map;
+
+        // Sync current user name and points
+        if (this.currentUser) {
+          const me = household.members.find((m) => m.id === this.currentUser.uid);
+          if (me) {
+            this.currentUserPoints = me.points ?? 0;
+            this.currentUserName = me.display_name;
+          }
+        }
+        this.cdr.detectChanges();
+      } else {
+        this.memberStatsMap = new Map();
+      }
+    });
+
     this.authUnsubscribe = this.auth.onAuthStateChanged((user) => {
       this.currentUser = user;
 
@@ -325,45 +368,13 @@ export class DashboardComponent implements OnInit, OnDestroy {
         return;
       }
 
-      this.subscribeToUserPoints(user.uid);
-
-      // Parallelize household and tasks loading
-      forkJoin({
-        household: this.householdService.loadMyHousehold().pipe(
-          timeout(15000),
-          catchError((err) => {
-            console.error('Household load timeout or error:', err);
-            return of(null);
-          }),
-        ),
-        tasks: this.taskService.loadHouseholdTasks().pipe(
-          timeout(15000),
-          catchError((err) => {
-            console.error('Tasks load timeout or error:', err);
-            return of([]);
-          }),
-        ),
-      }).subscribe({
-        next: ({ household }) => {
-          this.isInitialLoading = false;
-          if (household) {
-            const memberUids = (household.members as any[]).map((m) => m.id ?? m);
-            this.subscribeMemberStats(memberUids);
-          }
-          this.cdr.detectChanges();
-        },
-        error: () => {
-          this.isInitialLoading = false;
-          this.cdr.detectChanges();
-        },
-      });
+      this.initData(user);
     });
   }
 
   ngOnDestroy() {
     if (this.authUnsubscribe) this.authUnsubscribe();
-    if (this.pointsUnsubscribe) this.pointsUnsubscribe();
-    this.memberStatsUnsubscribes.forEach((unsub) => unsub());
+    if (this.householdSub) this.householdSub.unsubscribe();
   }
 
   async logout() {
