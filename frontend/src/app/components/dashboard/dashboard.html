@@ -4,6 +4,15 @@
       <div class="spinner-large"></div>
       <p>Syncing with ChoreQuest...</p>
     </div>
+  } @else if (hasInitialLoadError) {
+    <div class="error-state card text-center" style="max-width: 500px; margin: 40px auto; padding: 30px; border: 1px solid rgba(220, 53, 69, 0.2); text-align: center;">
+      <h2 style="color: #dc3545; margin-top: 0; margin-bottom: 15px;">Connection Timeout or Error</h2>
+      <p style="margin-bottom: 15px; line-height: 1.5;">{{ initialLoadErrorMsg }}</p>
+      <p style="font-size: 0.9rem; color: #6c757d; margin-bottom: 25px;">
+        Since we are on a free hosting tier, the server may take up to a minute to wake up on the first load.
+      </p>
+      <button class="btn btn--primary" (click)="retryLoading()">🔌 Reconnect to Server</button>
+    </div>
   } @else {
     @if (household$ | async; as household) {
       <div class="household-header card">

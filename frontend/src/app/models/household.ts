@@ -4,6 +4,9 @@ export interface HouseholdMember {
   email: string;
   is_admin: boolean;
   joined_at: string;
+  points?: number;
+  streak?: number;
+  total_tasks_completed?: number;
 }
 
 export interface Household {

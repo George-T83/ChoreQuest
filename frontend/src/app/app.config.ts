@@ -3,7 +3,7 @@ import {
   provideBrowserGlobalErrorListeners,
   importProvidersFrom,
 } from '@angular/core';
-import { provideRouter } from '@angular/router';
+import { provideRouter, withHashLocation } from '@angular/router';
 import { provideFirebaseApp, initializeApp } from '@angular/fire/app';
 import { provideAuth, getAuth } from '@angular/fire/auth';
 
@@ -26,7 +26,7 @@ export const appConfig: ApplicationConfig = {
     provideFirestore(() => getFirestore()),
 
     provideHttpClient(withInterceptors([authInterceptor])),
-    provideRouter(routes),
+    provideRouter(routes, withHashLocation()),
     provideAnimations(),
     importProvidersFrom(
       ToastrModule.forRoot({
