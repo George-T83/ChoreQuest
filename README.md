@@ -104,3 +104,11 @@ When you are done coding for the day:
 2. Go to your Django Terminal and press Ctrl + C to stop the backend server.
 
 3. While still in the Django terminal, type deactivate and hit Enter to exit your Python virtual environment.
+
+## Contributing
+
+This repo strips AI attribution (Co-Authored-By trailers, "Generated with Claude" footers, session links) from commits automatically via a git hook, and double-checks it in CI. After cloning, run once:
+
+```bash
+git config core.hooksPath .githooks
+```
