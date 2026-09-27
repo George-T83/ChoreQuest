@@ -14,6 +14,12 @@ ChoreQuest is a shared household management application designed to automate cho
 
 ---
 
+## Screenshot
+
+![ChoreQuest dashboard](docs/screenshots/dashboard.webp)
+
+---
+
 ## 🚀 First-Time Local Setup
 
 If you are cloning this repository for the first time, you must set up your local environments for both the frontend and backend.
